@@ -1,0 +1,19 @@
+{{- $name := get . "name"}}
+{{- $msvcName := get . "msvc-name"}}
+{{- $namespace := get . "namespace"}}
+
+
+apiVersion: crds.kloudlite.io/v1
+kind: ManagedResource
+metadata:
+  name: {{$name}}
+  namespace: {{$namespace}}
+spec:
+  inputs:
+    resourceName: {{$name}} 
+  mresKind:
+    kind: Database
+  msvcRef:
+    apiVersion: mysql.msvc.kloudlite.io/v1
+    kind: StandaloneService
+    name: {{$msvcName}}

@@ -1,0 +1,128 @@
+version: '3'
+
+dotenv: [".env"]
+
+tasks:
+  new-kind:
+    silent: true
+    cmds:
+      - |
+        [ -z "{{.Group}}" ] && echo env-var 'Group' not provided && exit 1
+        [ -z "{{.Kind}}" ] && echo env-var 'Kind' not provided && exit 1
+        exit 0
+      - operator-sdk create api --group {{.Group}} --version v1 --resource --controller --kind "{{.Kind}}"
+
+  setup:
+    dir: ./bin
+    cmds:
+      - |
+        curl -L0 https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.5/kustomize_v4.5.5_linux_amd64.tar.gz > kustomize.tar.gz
+        tar xf kustomize.tar.gz && rm -rf kustomize.tar.gz
+
+  run:
+    # env:
+      # NAMESERVER_ENDPOINT: http://10.13.13.4:3000
+    run: always
+    cmds:
+      - nodemon -e "go" --signal SIGKILL --exec 'go build -i -tags dynamic -o ./bin/operator && ./bin/operator || exit 1'
+      # - go build -i -tags dynamic -o ./bin/operator
+      # - ./bin/operator
+
+    sources:
+      - ./**/*.go
+    method: timestamp
+
+  build:
+    vars:
+      Name: kloudlite-cluster-operator
+    env:
+      IMG: registry.kloudlite.io/kloudlite/{{.EnvName}}/{{.Name}}:{{.Tag}}
+      # NAMESPACE: kl-core
+    preconditions:
+      - sh: test -n '{{.Tag}}'
+        msg: "var Tag must have a value"
+      - sh: test -n '{{.EnvName}}'
+        msg: "var EnvName must have a value"
+    cmds:
+      - make dev-docker-build dev-docker-push
+
+
+  yaml:crds:
+    cmds:
+      - |+
+        for file in $(ls config/crd/bases/*.yaml)
+        do
+          cat $file
+          echo "---"
+        done
+
+  yaml:operator:
+    vars:
+      Name: kloudlite-cluster-operator
+      # Image: registry.kloudlite.io/kloudlite/{{.EnvName}}/{{.Name}}:{{.Tag}}
+      Image: '{{printf "registry.kloudlite.io/kloudlite/{{.EnvName}}/%s:{{.ImageTag}}" .Name }}'
+      Namespace: '{{printf "{{.Namespace}}"}}'
+    # preconditions:
+    #   - sh: test -n '{{.Tag}}'
+    #     msg: "var Tag must have a value"
+    #   - sh: test -n '{{.EnvName}}'
+    #     msg: "var EnvName must have a value"
+    cmds:
+      - |+
+        yamls=$(kustomize build config/default | yq 'select(.kind | [.] - ["Deployment", "Service", "ConfigMap"] | length > 0 | not)' -y)
+        echo "---"
+        echo "$yamls" | yq '
+          select((.kind == "ConfigMap") and (.metadata.name == "manager-config")) |
+          .metadata.name = "{{.Name}}-manager-config" |
+          .metadata.namespace = "{{.Namespace}}"
+        ' -y
+
+        echo "---"
+        echo "$yamls" | yq '
+          select(.kind == "Service") |
+          .metadata.labels."control-plane" = "{{.Name}}" |
+          .spec.selector."control-plane" = "{{.Name}}" |
+          .metadata.name = "{{.Name}}" |
+          .metadata.namespace = "{{.Namespace}}"
+        ' -y
+        echo "---"
+        echo "$yamls" | yq '
+          select(.kind == "Deployment") |
+          .metadata.name = "{{.Name}}" |
+          .metadata.namespace = "{{.Namespace}}" |
+          .metadata.labels."control-plane" = "{{.Name}}" |
+          .spec.selector.matchLabels."control-plane" = "{{.Name}}" |
+          .spec.template.metadata.labels."control-plane" = "{{.Name}}" |
+          .spec.template.spec.containers = (
+            .spec.template.spec.containers | map_values(
+              if .name == "manager" then
+                .image = "{{.Image}}"
+              else . end
+            )
+          )
+        ' -y
+
+  pre:
+    run: once
+    cmds:
+      - go mod tidy
+      - make manifests
+      - make generate
+      - task: apply
+
+  apply:
+    run: once
+    dir: config/crd/bases
+    cmds:
+      - kubectl apply -f .
+
+  kill-port:
+    run: always
+    cmds:
+      - |
+        PID=$(lsof -t -i:8089)
+        if [ "$PID" != "" ]; then
+          kill -9 $PID
+        fi
+    silent: true
+

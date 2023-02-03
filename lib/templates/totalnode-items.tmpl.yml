@@ -1,0 +1,5 @@
+totalNodes:
+  items:
+    {{- range $value := .Items }}
+    - name: {{$value.Name}}
+    {{- end}}

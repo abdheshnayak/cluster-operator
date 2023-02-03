@@ -1,0 +1,34 @@
+apiVersion: cmgr.kloudlite.io/v1
+kind: Cluster
+metadata:
+  # labels:
+  #   app.kubernetes.io/name: cluster
+  #   app.kubernetes.io/instance: cluster-sample
+  #   app.kubernetes.io/part-of: cluster-operator
+  #   app.kubernetes.io/managed-by: kustomize
+  #   app.kubernetes.io/created-by: cluster-operator
+  name: cluster-sample
+spec:
+  accountId: sample-account
+  providerRef: provider-cp-u4mfkvwucdkddasgpa10ydumdkuv
+  provider: aws
+  count: 1
+  config: '{"instanceType":"c6a.large","vpc":""}'
+  region: ap-south-1
+  # TODO(user): Add fields here
+
+---
+
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: v1
+data:
+  accessKey: QUtJQVJRWUdSUE9SVURNUUlYR00=
+  accessSecret: MDh4WXBsZjVaZDh0UmtleTc2OFhtSnVTOUd1QnZhazRQOWVkZUZYcw==
+kind: Secret
+metadata:
+  name: provider-cp-u4mfkvwucdkddasgpa10ydumdkuv
+  namespace: kl-core
+type: Opaque
