@@ -273,6 +273,11 @@ func (r *MasterNodeReconciler) syncKubeConfig(req *rApi.Request[*cmgrv1.MasterNo
 		return err
 	}
 
+	tokenOut, err := fn.ExecCmd(fmt.Sprintf("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s cat /var/lib/rancher/k3s/server/node-token", r.Env.SSHPath, ip), "", true)
+	if err != nil {
+		return err
+	}
+
 	if update {
 
 		err = r.Client.Update(ctx, &corev1.Secret{
@@ -281,7 +286,9 @@ func (r *MasterNodeReconciler) syncKubeConfig(req *rApi.Request[*cmgrv1.MasterNo
 				Namespace: constants.MainNs,
 			},
 			Data: map[string][]byte{
-				"kubeconfig": out,
+				"kubeconfig":     out,
+				"node-token":     tokenOut,
+				"master-node-ip": []byte(ip),
 			},
 		})
 
@@ -292,7 +299,9 @@ func (r *MasterNodeReconciler) syncKubeConfig(req *rApi.Request[*cmgrv1.MasterNo
 				Namespace: constants.MainNs,
 			},
 			Data: map[string][]byte{
-				"kubeconfig": out,
+				"kubeconfig":     out,
+				"node-token":     tokenOut,
+				"master-node-ip": []byte(ip),
 			},
 		})
 	}
