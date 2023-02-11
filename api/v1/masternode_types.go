@@ -7,13 +7,13 @@ import (
 
 // MasterNodeSpec defines the desired state of MasterNode
 type MasterNodeSpec struct {
-	AccountId   string `json:"accountId"`
-	ClusterName string `json:"clusterName"`
-	MysqlURI    string `json:"mysqlURI"`
-	ProviderRef string `json:"providerRef"`
-	Provider    string `json:"provider"`
-	Config      string `json:"config"`
-	Region      string `json:"region"`
+	AccountName  string `json:"accountName"`
+	ClusterName  string `json:"clusterName"`
+	MysqlURI     string `json:"mysqlURI"`
+	ProviderName string `json:"providerName"`
+	Provider     string `json:"provider"`
+	Config       string `json:"config"`
+	Region       string `json:"region"`
 }
 
 //+kubebuilder:object:root=true
@@ -35,9 +35,9 @@ func (in *MasterNode) GetEnsuredAnnotations() map[string]string {
 
 func (a *MasterNode) GetEnsuredLabels() map[string]string {
 	return map[string]string{
-		"kloudlite.io/cluster-ref":  a.Spec.ClusterName,
-		"kloudlite.io/provider-ref": a.Spec.ProviderRef,
-		"kloudlite.io/account-ref":  a.Spec.AccountId,
+		"kloudlite.io/cluster.name":  a.Spec.ClusterName,
+		"kloudlite.io/provider.name": a.Spec.ProviderName,
+		"kloudlite.io/account.name":  a.Spec.AccountName,
 	}
 }
 

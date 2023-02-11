@@ -7,12 +7,12 @@ import (
 
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
-	AccountId   string `json:"accountId"`
-	ProviderRef string `json:"providerRef"`
-	Provider    string `json:"provider"`
-	Count       int    `json:"count"`
-	Region      string `json:"region"`
-	Config      string `json:"config"`
+	AccountName  string `json:"accountName"`
+	ProviderName string `json:"providerName"`
+	Provider     string `json:"provider"`
+	Count        int    `json:"count"`
+	Region       string `json:"region"`
+	Config       string `json:"config"`
 }
 
 //+kubebuilder:object:root=true
@@ -34,8 +34,8 @@ func (in *Cluster) GetEnsuredAnnotations() map[string]string {
 
 func (a *Cluster) GetEnsuredLabels() map[string]string {
 	return map[string]string{
-		"kloudlite.io/provider-ref": a.Spec.ProviderRef,
-		"kloudlite.io/account-ref":  a.Spec.AccountId,
+		"kloudlite.io/provider.name": a.Spec.ProviderName,
+		"kloudlite.io/account.name":  a.Spec.AccountName,
 	}
 }
 

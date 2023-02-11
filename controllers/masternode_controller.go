@@ -123,7 +123,7 @@ func mNode(name string) string {
 func (r *MasterNodeReconciler) getTFPath(obj *cmgrv1.MasterNode) string {
 	// eg -> /path/acc_id/do/blr1/node_id/do
 	// eg -> /path/acc_id/aws/ap-south-1/node_id/aws
-	return path.Join(r.Env.StorePath, obj.Spec.AccountId, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
+	return path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
 }
 
 func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode]) error {

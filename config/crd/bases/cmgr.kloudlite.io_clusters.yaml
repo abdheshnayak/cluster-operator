@@ -35,7 +35,7 @@ spec:
           spec:
             description: ClusterSpec defines the desired state of Cluster
             properties:
-              accountId:
+              accountName:
                 type: string
               config:
                 type: string
@@ -43,16 +43,16 @@ spec:
                 type: integer
               provider:
                 type: string
-              providerRef:
+              providerName:
                 type: string
               region:
                 type: string
             required:
-            - accountId
+            - accountName
             - config
             - count
             - provider
-            - providerRef
+            - providerName
             - region
             type: object
           status:

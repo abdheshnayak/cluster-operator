@@ -112,7 +112,7 @@ func (r *MasterNodeReconciler) getJobCrd(req *rApi.Request[*cmgrv1.MasterNode], 
 
 	providerSec, err := rApi.Get(
 		ctx, r.Client, types.NamespacedName{
-			Name:      obj.Spec.ProviderRef,
+			Name:      obj.Spec.ProviderName,
 			Namespace: constants.MainNs,
 		},
 		&corev1.Secret{},
@@ -172,7 +172,7 @@ func (r *MasterNodeReconciler) getJobCrd(req *rApi.Request[*cmgrv1.MasterNode], 
 				Provider: awsProvider{
 					AccessKey:    string(accessKey),
 					AccessSecret: string(accessSecret),
-					AccountId:    obj.Spec.AccountId,
+					AccountId:    obj.Spec.AccountName,
 				},
 				Node: awsNode{
 					NodeId:       mNode(obj.Name),
@@ -217,7 +217,7 @@ func (r *MasterNodeReconciler) getJobCrd(req *rApi.Request[*cmgrv1.MasterNode], 
 			Spec: doSpec{
 				Provider: doProvider{
 					ApiToken:  string(apiToken),
-					AccountId: req.Object.Spec.AccountId,
+					AccountId: req.Object.Spec.AccountName,
 				},
 				Node: doNode{
 					NodeId:  mNode(obj.Name),

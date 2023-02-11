@@ -129,7 +129,7 @@ func (r *ClusterReconciler) fetchRequired(req *rApi.Request[*cmgrv1.Cluster]) st
 	if err := func() error {
 		providerSec, err := rApi.Get(
 			ctx, r.Client, types.NamespacedName{
-				Name:      obj.Spec.ProviderRef,
+				Name:      obj.Spec.ProviderName,
 				Namespace: constants.MainNs,
 			},
 			&corev1.Secret{},
@@ -232,7 +232,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 
 		_, ok := rApi.GetLocal[*corev1.Secret](req, "provider-secret")
 		if !ok {
-			return fmt.Errorf("provider secret %s not found to perfom any action", obj.Spec.ProviderRef)
+			return fmt.Errorf("provider secret %s not found to perfom any action", obj.Spec.ProviderName)
 		}
 
 		dbName := fmt.Sprintf("cluster-%s", obj.Name)
@@ -284,7 +284,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 			ctx, &masterNodes, &client.ListOptions{
 				LabelSelector: apiLabels.SelectorFromValidatedSet(
 					map[string]string{
-						"kloudlite.io/provider-ref": obj.Spec.ProviderRef,
+						"kloudlite.io/provider-ref": obj.Spec.ProviderName,
 					},
 				),
 			},
@@ -301,13 +301,13 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 					},
 				},
 				Spec: cmgrv1.MasterNodeSpec{
-					ClusterName: obj.Name,
-					MysqlURI:    string(uri),
-					ProviderRef: obj.Spec.ProviderRef,
-					Provider:    obj.Spec.Provider,
-					Config:      obj.Spec.Config,
-					AccountId:   obj.Spec.AccountId,
-					Region:      obj.Spec.Region,
+					ClusterName:  obj.Name,
+					MysqlURI:     string(uri),
+					ProviderName: obj.Spec.ProviderName,
+					Provider:     obj.Spec.Provider,
+					Config:       obj.Spec.Config,
+					AccountName:  obj.Spec.AccountName,
+					Region:       obj.Spec.Region,
 				},
 			}); err != nil {
 				return err
@@ -338,11 +338,11 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 					Name: string(uuid.NewUUID()),
 				},
 				Spec: cmgrv1.MasterNodeSpec{
-					ClusterName: obj.Name,
-					MysqlURI:    string(uri),
-					ProviderRef: obj.Spec.ProviderRef,
-					Provider:    obj.Spec.Provider,
-					Config:      obj.Spec.Config,
+					ClusterName:  obj.Name,
+					MysqlURI:     string(uri),
+					ProviderName: obj.Spec.ProviderName,
+					Provider:     obj.Spec.Provider,
+					Config:       obj.Spec.Config,
 				},
 			}); err != nil {
 				return err
@@ -351,12 +351,12 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 			return fmt.Errorf("master node count was less than requirement, so creating one")
 		}
 
-		out, err := templates.Parse(templates.MasterNodes, masterNodes)
-		if err != nil {
-			return err
-		}
-
-		obj.Status.DisplayVars.Set("master-nodes", string(out))
+		// out, err := templates.Parse(templates.MasterNodes, masterNodes)
+		// if err != nil {
+		// 	return err
+		// }
+		//
+		// obj.Status.DisplayVars.Set("master-nodes", string(out))
 		return nil
 	}(); err != nil {
 		return failed(err)
