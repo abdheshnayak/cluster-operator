@@ -1,11 +1,12 @@
-package controllers
+package cmgr
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
-	cmgrv1 "github.com/kloudlite/cluster-operator/api/v1"
+
+	cmgrv1 "github.com/kloudlite/cluster-operator/apis/cmgr/v1"
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	"github.com/kloudlite/cluster-operator/lib/functions"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"

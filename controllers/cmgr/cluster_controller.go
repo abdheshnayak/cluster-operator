@@ -1,4 +1,4 @@
-package controllers
+package cmgr
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	cmgrv1 "github.com/kloudlite/cluster-operator/api/v1"
+	cmgrv1 "github.com/kloudlite/cluster-operator/apis/cmgr/v1"
 	"github.com/kloudlite/cluster-operator/env"
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	fn "github.com/kloudlite/cluster-operator/lib/functions"

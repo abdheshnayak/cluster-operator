@@ -6,6 +6,9 @@ import (
 	"os/exec"
 
 	"github.com/kloudlite/cluster-operator/lib/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type batchable string
@@ -58,4 +61,23 @@ func Scale(kind batchable, namespace string, labels map[string]string, count int
 		}
 	}
 	return 0, nil
+}
+
+func NewCliFromConfigBytes(scheme *runtime.Scheme, config []byte) (client.Client, error) {
+	clientCfg, err := clientcmd.NewClientConfigFromBytes(config)
+	if err != nil {
+		return nil, err
+	}
+
+	restCfg, err := clientCfg.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.New(restCfg, client.Options{
+		Scheme: scheme,
+		Opts: client.WarningHandlerOptions{
+			SuppressWarnings: true,
+		},
+	})
 }

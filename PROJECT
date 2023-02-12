@@ -1,6 +1,7 @@
 domain: kloudlite.io
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
@@ -13,8 +14,8 @@ resources:
   controller: true
   domain: kloudlite.io
   group: cmgr
-  kind: Cluster
-  path: github.com/kloudlite/cluster-operator/api/v1
+  kind: MasterNode
+  path: github.com/kloudlite/cluster-operator/apis/cmgr/v1
   version: v1
 - api:
     crdVersion: v1
@@ -22,7 +23,43 @@ resources:
   controller: true
   domain: kloudlite.io
   group: cmgr
-  kind: MasterNode
-  path: github.com/kloudlite/cluster-operator/api/v1
+  kind: Cluster
+  path: github.com/kloudlite/cluster-operator/apis/cmgr/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kloudlite.io
+  group: infra
+  kind: WorkerNode
+  path: github.com/kloudlite/cluster-operator/apis/infra/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kloudlite.io
+  group: infra
+  kind: CloudProvider
+  path: github.com/kloudlite/cluster-operator/apis/infra/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kloudlite.io
+  group: infra
+  kind: NodePool
+  path: github.com/kloudlite/cluster-operator/apis/infra/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kloudlite.io
+  group: infra
+  kind: Edge
+  path: github.com/kloudlite/cluster-operator/apis/infra/v1
   version: v1
 version: "3"

@@ -1,0 +1,12 @@
+apiVersion: infra.kloudlite.io/v1
+kind: CloudProvider
+metadata:
+  labels:
+    app.kubernetes.io/name: cloudprovider
+    app.kubernetes.io/instance: cloudprovider-sample
+    app.kubernetes.io/part-of: cluster-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-operator
+  name: cloudprovider-sample
+spec:
+  # TODO(user): Add fields here

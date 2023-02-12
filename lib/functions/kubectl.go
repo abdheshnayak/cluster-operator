@@ -209,11 +209,37 @@ func KubectlWithConfig(command string, config []byte) ([]byte, error) {
 
 	cmd := exec.Command("kubectl", cmdArr...)
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(cmd.Env, fmt.Sprintf("KUBECONFIG=%s", fname ))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("KUBECONFIG=%s", fname))
 
 	return cmd.Output()
 }
 
 func NamespacedName(obj client.Object) types.NamespacedName {
 	return types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}
+}
+
+func KubectlApplyExecWithConfig(stdin []byte, config []byte) (stdout *bytes.Buffer, err error) {
+
+	filename, err := uuid.GenerateUUID()
+	if err != nil {
+		return nil, err
+	}
+
+	s := os.TempDir()
+	fname := fmt.Sprintf("%s/%s.conf", s, filename)
+	if err := os.WriteFile(fname, config, os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	c := exec.Command("kubectl", "apply", "-f", "-")
+	outStream, errStream := bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{})
+	c.Stdin = bytes.NewBuffer(stdin)
+	c.Stdout = outStream
+	c.Stderr = errStream
+	c.Env = append(c.Env, fmt.Sprintf("KUBECONFIG=%s", fname))
+	if err := c.Run(); err != nil {
+		return outStream, errors.NewEf(err, errStream.String())
+	}
+	fmt.Printf("stdout: %s\n", outStream.Bytes())
+	return outStream, nil
 }

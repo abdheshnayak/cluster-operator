@@ -109,5 +109,7 @@ const (
 	SqlCrd      templateFile = "./cluster-sql-crd.tmpl.yml"
 	MasterNodes templateFile = "./masternode-items.tmpl.yml"
 	NodeJob     templateFile = "./nodejob.tmpl.yaml"
-	TotalNodes templateFile = "./totalnode-items.tmpl.yml"
+	TotalNodes  templateFile = "./totalnode-items.tmpl.yml"
+	Region      templateFile = "./region.tmpl.yml"
+	NodePools   templateFile = "./node-pools.tmpl.yml"
 )

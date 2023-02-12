@@ -1,0 +1,12 @@
+apiVersion: infra.kloudlite.io/v1
+kind: NodePool
+metadata:
+  labels:
+    app.kubernetes.io/name: nodepool
+    app.kubernetes.io/instance: nodepool-sample
+    app.kubernetes.io/part-of: cluster-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-operator
+  name: nodepool-sample
+spec:
+  # TODO(user): Add fields here

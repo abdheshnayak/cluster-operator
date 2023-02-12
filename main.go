@@ -15,8 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	cmgrv1 "github.com/kloudlite/cluster-operator/api/v1"
-	"github.com/kloudlite/cluster-operator/controllers"
+	cmgrv1 "github.com/kloudlite/cluster-operator/apis/cmgr/v1"
+	infrav1 "github.com/kloudlite/cluster-operator/apis/infra/v1"
+	cmgrcontrollers "github.com/kloudlite/cluster-operator/controllers/cmgr"
+	infracontrollers "github.com/kloudlite/cluster-operator/controllers/infra"
 	"github.com/kloudlite/cluster-operator/env"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	//+kubebuilder:scaffold:imports
@@ -31,6 +33,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(cmgrv1.AddToScheme(scheme))
+	utilruntime.Must(infrav1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -101,7 +104,7 @@ func main() {
 
 	logger := logging.NewOrDie(&logging.Options{Dev: true})
 
-	if err := (&controllers.ClusterReconciler{
+	if err := (&cmgrcontrollers.ClusterReconciler{
 		Env:  envVars,
 		Name: "Cluster",
 	}).SetupWithManager(mgr, logger); err != nil {
@@ -109,13 +112,43 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := (&controllers.MasterNodeReconciler{
+	if err := (&cmgrcontrollers.MasterNodeReconciler{
 		Env:  envVars,
 		Name: "MasterNode",
 	}).SetupWithManager(mgr, logger); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MasterNode")
 		os.Exit(1)
 	}
+
+	if err := (&infracontrollers.CloudProviderReconciler{
+		Name: "CLProvider",
+	}).SetupWithManager(mgr, logger); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CloudProvider")
+		os.Exit(1)
+	}
+
+	if err := (&infracontrollers.NodePoolReconciler{
+		Name: "Nodepool",
+	}).SetupWithManager(mgr, logger); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NodePool")
+		os.Exit(1)
+	}
+
+	if err := (&infracontrollers.WorkerNodeReconciler{
+		Env:  envVars,
+		Name: "WorkerNode",
+	}).SetupWithManager(mgr, logger); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "WorkerNode")
+		os.Exit(1)
+	}
+
+	if err := (&infracontrollers.EdgeReconciler{
+		Name: "Edge",
+	}).SetupWithManager(mgr, logger); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AccountProvider")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

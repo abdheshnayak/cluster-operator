@@ -3,9 +3,12 @@ package operator
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	rawJson "github.com/kloudlite/cluster-operator/lib/raw-json"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -117,4 +120,20 @@ func GetRaw[T any](ctx context.Context, cli client.Client, nn types.NamespacedNa
 		return nil, err
 	}
 	return &result, nil
+}
+
+func NewReconcilerCtx(parent context.Context, logger logging.Logger) context.Context {
+	return context.WithValue(parent, "logger", logger)
+}
+
+func GetK8sClient[V Resource](req *Request[V], scheme *runtime.Scheme) (client.Client, error) {
+	kubeConfigSec, ok := GetLocal[*corev1.Secret](req, "kubeconfig-sec")
+	if !ok {
+		return nil, fmt.Errorf("cluster config not found in secret")
+	}
+	kubeconfigBytes, ok := kubeConfigSec.Data["kubeconfig"]
+	if !ok {
+		return nil, fmt.Errorf("cluster config not found in secret")
+	}
+	return kubectl.NewCliFromConfigBytes(scheme, kubeconfigBytes)
 }

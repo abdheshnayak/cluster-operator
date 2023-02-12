@@ -2,8 +2,12 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/cmgr.kloudlite.io_clusters.yaml
 - bases/cmgr.kloudlite.io_masternodes.yaml
+- bases/cmgr.kloudlite.io_clusters.yaml
+- bases/infra.kloudlite.io_workernodes.yaml
+- bases/infra.kloudlite.io_cloudproviders.yaml
+- bases/infra.kloudlite.io_nodepools.yaml
+- bases/infra.kloudlite.io_edges.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -11,12 +15,20 @@ patchesStrategicMerge:
 # patches here are for enabling the conversion webhook for each CRD
 #- patches/webhook_in_clusters.yaml
 #- patches/webhook_in_masternodes.yaml
+#- patches/webhook_in_workernodes.yaml
+#- patches/webhook_in_cloudproviders.yaml
+#- patches/webhook_in_nodepools.yaml
+#- patches/webhook_in_edges.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
 #- patches/cainjection_in_clusters.yaml
 #- patches/cainjection_in_masternodes.yaml
+#- patches/cainjection_in_workernodes.yaml
+#- patches/cainjection_in_cloudproviders.yaml
+#- patches/cainjection_in_nodepools.yaml
+#- patches/cainjection_in_edges.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
