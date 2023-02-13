@@ -69,7 +69,7 @@ const (
 */
 
 func (r *MasterNodeReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	req, err := rApi.NewRequest(context.WithValue(ctx, "logger", r.logger), r.Client, request.NamespacedName, &cmgrv1.MasterNode{})
+	req, err := rApi.NewRequest(rApi.NewReconcilerCtx(ctx, r.logger), r.Client, request.NamespacedName, &cmgrv1.MasterNode{})
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -123,7 +123,9 @@ func mNode(name string) string {
 func (r *MasterNodeReconciler) getTFPath(obj *cmgrv1.MasterNode) string {
 	// eg -> /path/acc_id/do/blr1/node_id/do
 	// eg -> /path/acc_id/aws/ap-south-1/node_id/aws
-	return path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
+	tfPath := path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
+	r.logger.Debugf(tfPath)
+	return tfPath
 }
 
 func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode]) error {
@@ -151,7 +153,6 @@ func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode])
 		return err
 	}
 
-	r.logger.Debugf("node scheduled to create")
 	return nil
 }
 
@@ -223,6 +224,8 @@ func (r *MasterNodeReconciler) EnsureNodeCreated(req *rApi.Request[*cmgrv1.Maste
 		if err := r.createNode(req); err != nil {
 			return failed(err)
 		}
+
+		return failed(fmt.Errorf("node scheduled to create"))
 	}
 
 	_, err = rApi.Get(
@@ -232,6 +235,7 @@ func (r *MasterNodeReconciler) EnsureNodeCreated(req *rApi.Request[*cmgrv1.Maste
 		},
 		&batchv1.Job{},
 	)
+
 	if err == nil {
 		if err := r.Client.Delete(ctx, &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -316,6 +320,7 @@ func (r *MasterNodeReconciler) EnsureK3SInstalled(req *rApi.Request[*cmgrv1.Mast
 	check := rApi.Check{Generation: obj.Generation}
 
 	failed := func(err error) stepResult.Result {
+		r.logger.Errorf(err, obj.Name)
 		return req.CheckFailed(K3SInstalled, check, err.Error())
 	}
 
@@ -348,6 +353,9 @@ func (r *MasterNodeReconciler) EnsureK3SInstalled(req *rApi.Request[*cmgrv1.Mast
 	}
 
 	if _, err = fn.KubectlWithConfig("get nodes -ojson", kubeConfigSec.Data["kubeconfig"]); err != nil {
+		if e := r.syncKubeConfig(req, ip, true); e != nil {
+			return failed(e)
+		}
 		return failed(err)
 	}
 

@@ -63,8 +63,7 @@ const (
 )
 
 const (
-	mySqlServiceNS   string = "kl-core"
-	mySqlServiceName string = "cluster-mysql"
+	mySqlServiceNS string = "kl-core"
 )
 
 //+kubebuilder:rbac:groups=cmgr.kloudlite.io,resources=clusters,verbs=get;list;watch;create;update;patch;delete
@@ -72,7 +71,7 @@ const (
 //+kubebuilder:rbac:groups=cmgr.kloudlite.io,resources=clusters/finalizers,verbs=update
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	req, err := rApi.NewRequest(context.WithValue(ctx, "logger", r.logger), r.Client, request.NamespacedName, &cmgrv1.Cluster{})
+	req, err := rApi.NewRequest(rApi.NewReconcilerCtx(ctx, r.logger), r.Client, request.NamespacedName, &cmgrv1.Cluster{})
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -165,7 +164,7 @@ func (r *ClusterReconciler) fetchRequired(req *rApi.Request[*cmgrv1.Cluster]) st
 
 		return nil
 	}(); err != nil {
-		r.logger.Warnf(err.Error())
+		r.logger.Debugf(err.Error())
 	}
 
 	// check.Status = true
@@ -182,6 +181,8 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 	ctx, obj, checks := req.Context(), req.Object, req.Object.Status.Checks
 	check := rApi.Check{Generation: obj.Generation}
 	failed := func(err error) stepResult.Result {
+		fmt.Println("here")
+		r.logger.Errorf(err,"")
 		return req.CheckFailed(ClusterReady, check, err.Error())
 	}
 	/*
@@ -237,46 +238,63 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 
 		dbName := fmt.Sprintf("cluster-%s", obj.Name)
 
+		type ManagedResource struct {
+			Status struct {
+				IsReady bool `yaml:"isReady" json:"isReady"`
+			} `yaml:"status" json:"status"`
+		}
+
 		// fetch mysqldb if not present create one
-		if _, err := fn.ExecCmd(
+		mRes, err := fn.ExecCmd(
 			fmt.Sprintf("kubectl get managedresources -n=%s %s -ojson", mySqlServiceNS, dbName), "", true,
-		); err != nil {
+		)
+		if err != nil {
 			// needs to create db
 			res, err := templates.Parse(templates.SqlCrd, map[string]any{
 				"name":      dbName,
-				"msvc-name": mySqlServiceName,
+				"msvc-name": r.Env.MySqlServiceName,
 				"namespace": mySqlServiceNS,
 			})
 			if err != nil {
 				return err
 			}
 
-			_, err = fn.KubectlApplyExec(res)
-			if err != nil {
-				fmt.Println(err)
+			if _, err = fn.KubectlApplyExec(res); err != nil {
 				return err
 			}
-			// req.UpdateStatus()
-			return nil
+			return fmt.Errorf("managed resource creating")
+		}
+
+		var mResource ManagedResource
+
+		if err := json.Unmarshal(mRes, &mResource); err != nil {
+			return err
+		}
+
+		if !mResource.Status.IsReady {
+			return fmt.Errorf("database is not ready. waiting for it to be ready")
 		}
 
 		// TODO
 		// // fetchUri
 
-		// mysqlSecret, err := rApi.Get(
-		// 	ctx, r.Client, types.NamespacedName{
-		// 		Name:      dbName,
-		// 		Namespace: constants.MainNs, // TODO
-		// 	},
-		// 	&corev1.Secret{},
-		// )
-		// if err != nil {
-		// 	return err
-		// }
+		mysqlSecret, err := rApi.Get(
+			ctx, r.Client, types.NamespacedName{
+				Name:      fmt.Sprintf("mres-%s", dbName),
+				Namespace: constants.MainNs, // TODO
+			},
+			&corev1.Secret{},
+		)
+		if err != nil {
+			return err
+		}
 		// // we got uri for the node creation
-		// uri := mysqlSecret.Data["URI"]
+		uri, ok := mysqlSecret.Data["DSN"]
+		if !ok {
+			return fmt.Errorf("can't get dsn of db")
+		}
 
-		uri := "mysql://49b0033e88e45096fb4f33a30ee0c359:boe-ffRaO02YdoZLCtj1FFBLxmx6CPAfz0BAiVlt@tcp(clusterdb.kloudlite.io:30001)/cluster_test_01"
+		// uri := "mysql://49b0033e88e45096fb4f33a30ee0c359:boe-ffRaO02YdoZLCtj1FFBLxmx6CPAfz0BAiVlt@tcp(clusterdb.kloudlite.io:30001)/cluster_test_01"
 
 		// check masters and match it to requirement
 		var masterNodes cmgrv1.MasterNodeList
@@ -284,7 +302,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 			ctx, &masterNodes, &client.ListOptions{
 				LabelSelector: apiLabels.SelectorFromValidatedSet(
 					map[string]string{
-						"kloudlite.io/provider-ref": obj.Spec.ProviderName,
+						"kloudlite.io/cluster.name": obj.Name,
 					},
 				),
 			},

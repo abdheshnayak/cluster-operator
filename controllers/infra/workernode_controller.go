@@ -23,7 +23,7 @@ import (
 	infrav1 "github.com/kloudlite/cluster-operator/apis/infra/v1"
 	"github.com/kloudlite/cluster-operator/env"
 	"github.com/kloudlite/cluster-operator/lib/constants"
-	"github.com/kloudlite/cluster-operator/lib/functions"
+	fn "github.com/kloudlite/cluster-operator/lib/functions"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
@@ -264,7 +264,7 @@ func (r *WorkerNodeReconciler) deleteNode(req *rApi.Request[*infrav1.WorkerNode]
 		return err
 	}
 
-	if _, err = functions.KubectlApplyExec(jobOut); err != nil {
+	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
 		return err
 	}
 
@@ -335,9 +335,9 @@ func (r *WorkerNodeReconciler) getJobCrd(req *rApi.Request[*infrav1.WorkerNode],
 	klConfig := KLConf{
 		Version: "v1",
 		Values: KLConfValues{
-			StorePath:   r.Env.StorePath,
-			TfTemplates: r.Env.TFTemplatesPath,
-			SSHPath:     r.Env.SSHPath,
+			StorePath:   r.Env.JobStorePath,
+			TfTemplates: r.Env.JobTFTemplatesPath,
+			SSHPath:     r.Env.JobSSHPath,
 		},
 	}
 
@@ -459,7 +459,7 @@ func (r *WorkerNodeReconciler) getJobCrd(req *rApi.Request[*infrav1.WorkerNode],
 		"nodeConfig": config,
 		"klConfig":   base64.StdEncoding.EncodeToString(klConfigJsonBytes),
 		"provider":   obj.Spec.Provider,
-		"ownerRefs":  []metav1.OwnerReference{functions.AsOwner(obj, true)},
+		"ownerRefs":  []metav1.OwnerReference{fn.AsOwner(obj, true)},
 	})
 
 	if err != nil {
@@ -490,7 +490,7 @@ func (r *WorkerNodeReconciler) createNode(req *rApi.Request[*infrav1.WorkerNode]
 		return err
 	}
 
-	if _, err = functions.KubectlApplyExec(jobOut); err != nil {
+	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
 		return err
 	}
 
@@ -539,7 +539,7 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 
 	// fmt.Println("********************************************************************", cmd)
 
-	_, err = functions.ExecCmd(cmd, "", true)
+	_, err = fn.ExecCmd(cmd, "", true)
 	if err != nil {
 		return err
 	}

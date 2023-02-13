@@ -126,9 +126,9 @@ func (r *MasterNodeReconciler) getJobCrd(req *rApi.Request[*cmgrv1.MasterNode], 
 	klConfig := KLConf{
 		Version: "v1",
 		Values: KLConfValues{
-			StorePath:   r.Env.StorePath,
-			TfTemplates: r.Env.TFTemplatesPath,
-			SSHPath:     r.Env.SSHPath,
+			StorePath:   r.Env.JobStorePath,
+			TfTemplates: r.Env.JobTFTemplatesPath,
+			SSHPath:     r.Env.JobSSHPath,
 		},
 	}
 
