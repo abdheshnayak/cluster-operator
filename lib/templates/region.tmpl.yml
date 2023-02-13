@@ -2,7 +2,7 @@
 {{- $account := get . "account"}}
 {{- $provider := get . "provider"}}
 
-apiVersion: management.kloudlite.io/v1
+apiVersion: wg.kloudlite.io/v1
 kind: Region
 metadata:
   labels:

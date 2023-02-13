@@ -43,5 +43,5 @@ const (
 )
 
 const (
-	RegionKind string = "regions.management.kloudlite.io"
+	RegionKind string = "regions.wg.kloudlite.io"
 )

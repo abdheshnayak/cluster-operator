@@ -329,26 +329,6 @@ func (r *EdgeReconciler) UpdatePool(req *rApi.Request[*infrav1.Edge]) error {
 }
 
 func (r *EdgeReconciler) finalize(req *rApi.Request[*infrav1.Edge]) stepResult.Result {
-	// check and delete region
-	// if err := func() error {
-	// 	_, err := rApi.Get(
-	// 		req.Context(), r.Client, types.NamespacedName{
-	// 			Name: req.Object.Name,
-	// 		}, &managementv1.Region{},
-	// 	)
-	//
-	// 	if err != nil {
-	// 		if !apiErrors.IsNotFound(err) {
-	// 			return err
-	// 		}
-	// 		return nil
-	// 	}
-	//
-	// 	return r.Delete(req.Context(), req.Object)
-	//
-	// }(); err != nil {
-	// 	return req.FailWithStatusError(err)
-	// }
 
 	checkName := "NodePoolsDeleted"
 
