@@ -221,14 +221,20 @@ func (r *EdgeReconciler) reconPool(req *rApi.Request[*infrav1.Edge]) stepResult.
 		}
 	} else {
 
-		for _, p := range req.Object.Spec.Pools {
-			matched := false
+		for _, p := range obj.Spec.Pools {
+			matched := true
 			for _, np := range nodePools.Items {
-				if fmt.Sprintf("%s-%s", req.Object.Name, p.Name) == np.Name &&
-					p.Min == np.Spec.Min &&
-					p.Max == np.Spec.Max &&
-					p.Config == np.Spec.Config {
-					matched = true
+				if fmt.Sprintf("%s-%s", obj.Name, p.Name) == np.Name {
+					if p.Min == np.Spec.Min &&
+						p.Max == np.Spec.Max &&
+						p.Config == np.Spec.Config {
+						continue
+					}
+
+					matched = false
+					break
+				}
+				if !matched {
 					break
 				}
 			}

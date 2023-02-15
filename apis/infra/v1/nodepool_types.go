@@ -11,11 +11,11 @@ import (
 type NodePoolSpec struct {
 	AccountName  string `json:"accountName"`
 	ClusterName  string `json:"clusterName"`
-	EdgeName     string `json:"edgeName,omitempty"`
-	Provider     string `json:"provider,omitempty"`
-	ProviderName string `json:"providerName,omitempty"`
-	Region       string `json:"region,omitempty"`
-	Config       string `json:"config,omitempty"`
+	EdgeName     string `json:"edgeName"`
+	Provider     string `json:"provider"`
+	ProviderName string `json:"providerName"`
+	Region       string `json:"region"`
+	Config       string `json:"config"`
 	Min          int    `json:"min,omitempty"`
 	Max          int    `json:"max,omitempty"`
 }

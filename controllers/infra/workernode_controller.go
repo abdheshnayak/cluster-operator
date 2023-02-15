@@ -66,6 +66,8 @@ const (
 
 func (r *WorkerNodeReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 
+	return ctrl.Result{}, fmt.Errorf("off")
+
 	req, err := rApi.NewRequest(rApi.NewReconcilerCtx(ctx, r.logger), r.Client, request.NamespacedName, &infrav1.WorkerNode{})
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)

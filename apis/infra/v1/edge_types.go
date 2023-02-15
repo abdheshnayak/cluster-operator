@@ -64,6 +64,7 @@ func (a *Edge) GetEnsuredLabels() map[string]string {
 		"kloudlite.io/account.name":  a.Spec.AccountName,
 		"kloudlite.io/edge.name":     a.Name,
 		"kloudlite.io/provider.name": a.Spec.ProviderName,
+		"kloudlite.io/cluster.name": a.Spec.ClusterName,
 	}
 }
 
