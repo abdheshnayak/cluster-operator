@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cmgrv1 "github.com/kloudlite/cluster-operator/apis/cmgr/v1"
+	infrav1 "github.com/kloudlite/cluster-operator/apis/infra/v1"
 	"github.com/kloudlite/cluster-operator/env"
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	fn "github.com/kloudlite/cluster-operator/lib/functions"
@@ -16,6 +17,7 @@ import (
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
 	"github.com/kloudlite/cluster-operator/lib/templates"
 	corev1 "k8s.io/api/core/v1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiLabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -181,7 +183,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 	check := rApi.Check{Generation: obj.Generation}
 	failed := func(err error) stepResult.Result {
 		fmt.Println("here")
-		r.logger.Errorf(err,"")
+		r.logger.Errorf(err, "")
 		return req.CheckFailed(ClusterReady, check, err.Error())
 	}
 	/*
@@ -389,7 +391,38 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 }
 
 func (r *ClusterReconciler) finalize(req *rApi.Request[*cmgrv1.Cluster]) stepResult.Result {
-	return nil
+	ctx, obj := req.Context(), req.Object
+	rApi.Get(ctx, r.Client, types.NamespacedName{}, &infrav1.WorkerNode{})
+
+	var workerNodes infrav1.WorkerNodeList
+	if err := r.List(
+		ctx, &workerNodes,
+		&client.ListOptions{
+			LabelSelector: apiLabels.SelectorFromValidatedSet(
+				apiLabels.Set{
+					"kloudlite.io/cluster.name": obj.Name,
+				},
+			),
+		},
+	); err != nil {
+		if !apiErrors.IsNotFound(err) {
+			return req.FailWithStatusError(err)
+		}
+		return req.Finalize()
+	}
+
+	if len(workerNodes.Items) > 0 {
+		for _, node := range workerNodes.Items {
+			if node.GetDeletionTimestamp() != nil {
+				if err := r.Delete(ctx, &node); err != nil {
+					return req.FailWithStatusError(err)
+				}
+			}
+		}
+		return req.FailWithStatusError(fmt.Errorf("worker nodes are being deleted"))
+	}
+
+	return req.Finalize()
 }
 
 // SetupWithManager sets up the controller with the Manager.

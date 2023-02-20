@@ -73,6 +73,11 @@ spec:
             required:
             - accountName
             - clusterName
+            - config
+            - edgeName
+            - provider
+            - providerName
+            - region
             type: object
           status:
             properties:
