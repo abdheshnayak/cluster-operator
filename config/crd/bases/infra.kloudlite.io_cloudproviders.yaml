@@ -39,6 +39,25 @@ spec:
             type: object
           spec:
             description: CloudProviderSpec defines the desired state of CloudProvider
+            properties:
+              accountName:
+                minLength: 1
+                type: string
+              providerSecret:
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  namespace:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - accountName
+            - providerSecret
             type: object
           status:
             properties:
@@ -125,6 +144,7 @@ spec:
                   type: object
                 type: array
               conditions:
+                description: GeneratedVars   *json.RawMessage    `json:"generatedVars,omitempty"`
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -193,9 +213,11 @@ spec:
                   type: object
                 type: array
               displayVars:
+                nullable: true
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               generatedVars:
+                nullable: true
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               isReady:

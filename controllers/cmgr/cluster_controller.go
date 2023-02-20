@@ -147,7 +147,6 @@ func (r *ClusterReconciler) fetchRequired(req *rApi.Request[*cmgrv1.Cluster]) st
 
 	// fetching kubeConfig
 	if err := func() error {
-
 		kubeConfig, err := rApi.Get(
 			ctx, r.Client, types.NamespacedName{
 				Name:      fmt.Sprintf("cluster-kubeconfig-%s", obj.Name),

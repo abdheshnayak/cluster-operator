@@ -57,21 +57,23 @@ spec:
             description: EdgeSpec defines the desired state of Edge
             properties:
               accountName:
-                description: Foo is an example field of Edge. Edit accountprovider_types.go
-                  to remove/update
+                minLength: 1
                 type: string
               clusterName:
+                minLength: 1
                 type: string
               pools:
                 items:
                   properties:
                     config:
+                      minLength: 1
                       type: string
                     max:
                       type: integer
                     min:
                       type: integer
                     name:
+                      minLength: 1
                       type: string
                   required:
                   - config
@@ -79,15 +81,19 @@ spec:
                   type: object
                 type: array
               provider:
+                minLength: 1
                 type: string
               providerName:
+                minLength: 1
                 type: string
               region:
+                minLength: 1
                 type: string
             required:
             - accountName
             - clusterName
             - providerName
+            - region
             type: object
           status:
             properties:
@@ -174,6 +180,7 @@ spec:
                   type: object
                 type: array
               conditions:
+                description: GeneratedVars   *json.RawMessage    `json:"generatedVars,omitempty"`
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -242,9 +249,11 @@ spec:
                   type: object
                 type: array
               displayVars:
+                nullable: true
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               generatedVars:
+                nullable: true
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               isReady:

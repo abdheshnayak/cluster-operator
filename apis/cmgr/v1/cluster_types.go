@@ -7,11 +7,17 @@ import (
 
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
+	// +kubebuilder:validation:MinLength=1
 	AccountName  string `json:"accountName"`
+	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
+	// +kubebuilder:validation:MinLength=1
 	Provider     string `json:"provider"`
+	// +kubebuilder:validation:Min: 0
 	Count        int    `json:"count"`
+	// +kubebuilder:validation:MinLength=1
 	Region       string `json:"region"`
+	// +kubebuilder:validation:MinLength=1
 	Config       string `json:"config"`
 }
 

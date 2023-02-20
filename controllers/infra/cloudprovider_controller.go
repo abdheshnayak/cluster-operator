@@ -120,7 +120,7 @@ func (r *CloudProviderReconciler) finalize(req *rApi.Request[*infrav1.CloudProvi
 		return req.Done()
 	}
 
-	scrt, err := rApi.Get(ctx, r.Client, fn.NN(KloudliteNS, obj.Name), &corev1.Secret{})
+	scrt, err := rApi.Get(ctx, r.Client, fn.NN(obj.Spec.ProviderSecret.Namespace, obj.Spec.ProviderSecret.Name), &corev1.Secret{})
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return req.Finalize()
@@ -138,7 +138,6 @@ func (r *CloudProviderReconciler) finalize(req *rApi.Request[*infrav1.CloudProvi
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CloudProviderReconciler) SetupWithManager(mgr ctrl.Manager, logger logging.Logger) error {
-
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 	r.logger = logger.WithName(r.Name)

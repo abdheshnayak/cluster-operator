@@ -11,9 +11,26 @@ import (
 // +kubebuilder:validation:Type=object
 
 type RawJson struct {
-	items map[string]any
+	items map[string]any `json:"-"`
 	// RawJson[string, json.RawMessage] `json:",inline"`
-	json.RawMessage `json:",inline"`
+	json.RawMessage `json:",inline,omitempty"`
+}
+
+// MarshalJSON returns m as the JSON encoding of m.
+func (m RawJson) MarshalJSON() ([]byte, error) {
+	if m.RawMessage == nil {
+		return []byte("null"), nil
+	}
+	return m.RawMessage, nil
+}
+
+// UnmarshalJSON sets *m to a copy of data.
+func (m *RawJson) UnmarshalJSON(data []byte) error {
+	if m == nil {
+		return errors.New("json.RawMessage: UnmarshalJSON on nil pointer")
+	}
+	m.RawMessage = data
+	return nil
 }
 
 func (k *RawJson) DeepCopyInto(out *RawJson) {

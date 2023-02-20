@@ -43,16 +43,20 @@ type Check struct {
 
 type Status struct {
 	// +kubebuilder:validation:Optional
-	IsReady           bool               `json:"isReady"`
-	Message           rawJson.RawJson    `json:"message,omitempty"`
-	Messages          []ContainerMessage `json:"messages,omitempty"`
-	DisplayVars       rawJson.RawJson    `json:"displayVars,omitempty"`
-	GeneratedVars     rawJson.RawJson    `json:"generatedVars,omitempty"`
-	Conditions        []metav1.Condition `json:"conditions,omitempty"`
-	ChildConditions   []metav1.Condition `json:"childConditions,omitempty"`
-	OpsConditions     []metav1.Condition `json:"opsConditions,omitempty"`
-	Checks            map[string]Check   `json:"checks,omitempty"`
-	LastReconcileTime metav1.Time        `json:"lastReconcileTime,omitempty"`
+	IsReady  bool               `json:"isReady"`
+	Message  *rawJson.RawJson   `json:"message,omitempty"`
+	Messages []ContainerMessage `json:"messages,omitempty"`
+	//+nullable
+	DisplayVars *rawJson.RawJson `json:"displayVars,omitempty"`
+	//+nullable
+	GeneratedVars *rawJson.RawJson `json:"generatedVars,omitempty"`
+	// GeneratedVars   *json.RawMessage    `json:"generatedVars,omitempty"`
+	Conditions      []metav1.Condition `json:"conditions,omitempty"`
+	ChildConditions []metav1.Condition `json:"childConditions,omitempty"`
+	OpsConditions   []metav1.Condition `json:"opsConditions,omitempty"`
+	Checks          map[string]Check   `json:"checks,omitempty"`
+	// +kubebuilder:validation:Type=string
+	LastReconcileTime *metav1.Time `json:"lastReconcileTime,omitempty"`
 }
 
 type Reconciler interface {

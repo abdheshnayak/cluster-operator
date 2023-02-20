@@ -27,11 +27,6 @@ type WorkerNodeSpec struct {
 	Index int `json:"nodeIndex,omitempty"`
 }
 
-type WorkerNodeStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
@@ -77,6 +72,7 @@ func (a *WorkerNode) GetEnsuredLabels() map[string]string {
 		"kloudlite.io/account-node.name": a.Name,
 		constants.AccountNameKey:         a.Spec.AccountName,
 		"kloudlite.io/region":            a.Spec.EdgeName,
+		constants.ClusterNameKey:         a.Spec.ClusterName,
 		constants.NodePoolKey:            a.Spec.Pool,
 		constants.NodeIndex:              fmt.Sprintf("%d", a.Spec.Index),
 		"kloudlite.io/provider.name":     a.Spec.ProviderName,

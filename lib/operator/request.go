@@ -2,7 +2,6 @@ package operator
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/kloudlite/cluster-operator/lib/conditions"
@@ -11,7 +10,6 @@ import (
 	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
-	rawJson "github.com/kloudlite/cluster-operator/lib/raw-json"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -130,7 +128,7 @@ func (r *Request[T]) FailWithStatusError(err error, moreConditions ...metav1.Con
 
 	r.Object.GetStatus().IsReady = false
 	r.Object.GetStatus().Conditions = newConditions
-	r.Object.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+	r.Object.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 
 	if err2 := r.client.Status().Update(r.ctx, r.Object); err2 != nil {
 		return stepResult.New().Err(err2)
@@ -162,7 +160,7 @@ func (r *Request[T]) FailWithOpError(err error, moreConditions ...metav1.Conditi
 	}
 	r.Object.GetStatus().IsReady = false
 	r.Object.GetStatus().OpsConditions = newConditions
-	r.Object.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+	r.Object.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 
 	if err2 := r.client.Status().Update(r.ctx, r.Object); err2 != nil {
 		return stepResult.New().Err(err2)
@@ -207,14 +205,14 @@ func (r *Request[T]) ClearStatusIfAnnotated() stepResult.Result {
 		}
 
 		obj.GetStatus().IsReady = false
-		obj.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+		obj.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 		obj.GetStatus().Checks = nil
-		obj.GetStatus().Message = rawJson.RawJson{}
+		obj.GetStatus().Message = nil
 		obj.GetStatus().Messages = nil
 		obj.GetStatus().Conditions = nil
 		obj.GetStatus().OpsConditions = nil
 		obj.GetStatus().ChildConditions = nil
-		obj.GetStatus().DisplayVars = rawJson.RawJson{}
+		obj.GetStatus().DisplayVars = nil
 
 		if err := r.client.Status().Update(context.TODO(), obj); err != nil {
 			return r.FailWithOpError(err)
@@ -271,7 +269,7 @@ func (r *Request[T]) CheckFailed(name string, check Check, msg string) stepResul
 	r.Object.GetStatus().Checks[name] = check
 	r.Object.GetStatus().Message.Set(name, check.Message)
 	r.Object.GetStatus().IsReady = false
-	r.Object.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+	r.Object.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 	if err := r.client.Status().Update(r.ctx, r.Object); err != nil {
 		return stepResult.New().Err(err)
 	}
@@ -283,7 +281,7 @@ func (r *Request[T]) Context() context.Context {
 }
 
 func (r *Request[T]) Done(result ...ctrl.Result) stepResult.Result {
-	r.Object.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+	r.Object.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 	if err := r.client.Status().Update(context.TODO(), r.Object); err != nil {
 		return stepResult.New().Err(err)
 	}
@@ -298,7 +296,7 @@ func (r *Request[T]) Next() stepResult.Result {
 }
 
 func (r *Request[T]) UpdateStatus() stepResult.Result {
-	r.Object.GetStatus().LastReconcileTime = metav1.Time{Time: time.Now()}
+	r.Object.GetStatus().LastReconcileTime = &metav1.Time{Time: time.Now()}
 	checks := r.Object.GetStatus().Checks
 	for name := range checks {
 		if checks[name].Status {
@@ -307,12 +305,10 @@ func (r *Request[T]) UpdateStatus() stepResult.Result {
 			}
 
 			if r.Object.GetStatus().Message.Len() == 0 {
-				r.Object.GetStatus().Message = rawJson.RawJson{RawMessage: nil}
+				r.Object.GetStatus().Message = nil
 			}
 		}
 	}
-	fmt.Printf("post update checks: %+v\n", checks)
-
 	if err := r.client.Status().Update(r.Context(), r.Object); err != nil {
 		return stepResult.New().Err(err)
 	}

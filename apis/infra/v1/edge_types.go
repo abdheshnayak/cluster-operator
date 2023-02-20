@@ -8,11 +8,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type Pool struct {
+	// +kubebuilder:validation:MinLength=1
 	Name   string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
 	Config string `json:"config"`
 	Min    int    `json:"min,omitempty"`
 	Max    int    `json:"max,omitempty"`
@@ -20,14 +19,15 @@ type Pool struct {
 
 // EdgeSpec defines the desired state of Edge
 type EdgeSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Edge. Edit accountprovider_types.go to remove/update
+	// +kubebuilder:validation:MinLength=1
 	AccountName  string `json:"accountName"`
+	// +kubebuilder:validation:MinLength=1
 	Provider     string `json:"provider,omitempty"`
-	Region       string `json:"region,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Region       string `json:"region"`
+	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
+	// +kubebuilder:validation:MinLength=1
 	ClusterName  string `json:"clusterName"`
 
 	Pools []Pool `json:"pools,omitempty"`

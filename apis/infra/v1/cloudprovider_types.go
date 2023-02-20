@@ -4,13 +4,22 @@ import (
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type ObjectRef struct {
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
+	Namespace string `json:"namespace"`
+}
 
 // CloudProviderSpec defines the desired state of CloudProvider
 type CloudProviderSpec struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	AccountName string `json:"accountName"`
+	ProviderSecret ObjectRef `json:"providerSecret"`
 }
 
 //+kubebuilder:object:root=true
@@ -25,6 +34,10 @@ type CloudProvider struct {
 
 	Spec   CloudProviderSpec `json:"spec,omitempty"`
 	Status rApi.Status       `json:"status,omitempty"`
+}
+
+func (cp *CloudProvider) GetGVK() schema.GroupVersionKind {
+	return GroupVersion.WithKind("CloudProvider")
 }
 
 func (in *CloudProvider) GetEnsuredAnnotations() map[string]string {

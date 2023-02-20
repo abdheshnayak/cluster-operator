@@ -18,6 +18,7 @@ const (
 const (
 	AccountNameKey string = "kloudlite.io/account.name"
 	EdgeNameKey    string = "kloudlite.io/edge.name"
+	ClusterNameKey string = "kloudlite.io/cluster.name"
 
 	ProjectNameKey       string = "kloudlite.io/project.name"
 	MsvcNameKey          string = "kloudlite.io/msvc.name"
