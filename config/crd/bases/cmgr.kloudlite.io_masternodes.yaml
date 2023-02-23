@@ -15,7 +15,23 @@ spec:
     singular: masternode
   scope: Cluster
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - description: account
+      jsonPath: .spec.accountName
+      name: Account
+      type: string
+    - description: provider
+      jsonPath: .metadata.annotations.instanceType
+      name: Instance
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: isReady
+      jsonPath: .status.isReady
+      name: Ready
+      type: boolean
+    name: v1
     schema:
       openAPIV3Schema:
         description: MasterNode is the Schema for the masternodes API
@@ -41,11 +57,10 @@ spec:
                 type: string
               config:
                 type: string
-              mysqlURI:
-                type: string
               provider:
                 type: string
               providerName:
+                description: MysqlURI     string `json:"mysqlURI"`
                 type: string
               region:
                 type: string
@@ -53,7 +68,6 @@ spec:
             - accountName
             - clusterName
             - config
-            - mysqlURI
             - provider
             - providerName
             - region

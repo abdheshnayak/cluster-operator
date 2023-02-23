@@ -46,7 +46,7 @@ func (r *CloudProviderReconciler) Reconcile(ctx context.Context, request ctrl.Re
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if step := req.EnsureChecks(RegionReady, PoolReady); !step.ShouldProceed() {
+	if step := req.EnsureChecks(EdgesDeleted); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
 

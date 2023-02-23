@@ -24,6 +24,9 @@ type ClusterSpec struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:name="Account",type="string",JSONPath=".spec.accountName",description="account"
+// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.isReady",description="region"
 
 // Cluster is the Schema for the clusters API
 type Cluster struct {

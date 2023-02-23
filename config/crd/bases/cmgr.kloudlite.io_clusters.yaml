@@ -15,7 +15,19 @@ spec:
     singular: cluster
   scope: Cluster
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - description: account
+      jsonPath: .spec.accountName
+      name: Account
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: region
+      jsonPath: .status.isReady
+      name: Ready
+      type: boolean
+    name: v1
     schema:
       openAPIV3Schema:
         description: Cluster is the Schema for the clusters API
