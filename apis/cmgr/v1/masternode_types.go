@@ -7,9 +7,9 @@ import (
 
 // MasterNodeSpec defines the desired state of MasterNode
 type MasterNodeSpec struct {
-	AccountName  string `json:"accountName"`
-	ClusterName  string `json:"clusterName"`
-	MysqlURI     string `json:"mysqlURI"`
+	AccountName string `json:"accountName"`
+	ClusterName string `json:"clusterName"`
+	// MysqlURI     string `json:"mysqlURI"`
 	ProviderName string `json:"providerName"`
 	Provider     string `json:"provider"`
 	Config       string `json:"config"`
@@ -19,6 +19,7 @@ type MasterNodeSpec struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.isReady",description="isReady"
 
 // MasterNode is the Schema for the masternodes API
 type MasterNode struct {

@@ -15,5 +15,5 @@ spec:
     kind: Database
   msvcRef:
     apiVersion: mysql.msvc.kloudlite.io/v1
-    kind: StandaloneService
+    kind: ClusterService
     name: {{$msvcName}}

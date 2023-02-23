@@ -290,8 +290,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 			return err
 		}
 		// // we got uri for the node creation
-		uri, ok := mysqlSecret.Data["DSN"]
-		if !ok {
+		if _, ok = mysqlSecret.Data["DSN"]; !ok {
 			return fmt.Errorf("can't get dsn of db")
 		}
 
@@ -320,8 +319,8 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 					},
 				},
 				Spec: cmgrv1.MasterNodeSpec{
-					ClusterName:  obj.Name,
-					MysqlURI:     string(uri),
+					ClusterName: obj.Name,
+					// MysqlURI:     string(uri),
 					ProviderName: obj.Spec.ProviderName,
 					Provider:     obj.Spec.Provider,
 					Config:       obj.Spec.Config,
@@ -357,8 +356,8 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 					Name: string(uuid.NewUUID()),
 				},
 				Spec: cmgrv1.MasterNodeSpec{
-					ClusterName:  obj.Name,
-					MysqlURI:     string(uri),
+					ClusterName: obj.Name,
+					// MysqlURI:     string(uri),
 					ProviderName: obj.Spec.ProviderName,
 					Provider:     obj.Spec.Provider,
 					Config:       obj.Spec.Config,

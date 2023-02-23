@@ -178,7 +178,7 @@ func (r *MasterNodeReconciler) deleteNode(req *rApi.Request[*cmgrv1.MasterNode])
 	return nil
 }
 
-func (r *MasterNodeReconciler) installMasterOnNode(obj *cmgrv1.MasterNode, ip string) error {
+func (r *MasterNodeReconciler) installMasterOnNode(req *rApi.Request[*cmgrv1.MasterNode], ip string) error {
 	// cmd := fmt.Sprintf(
 	// 	"ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik",
 	// 	r.Env.SSHPath,
@@ -188,18 +188,38 @@ func (r *MasterNodeReconciler) installMasterOnNode(obj *cmgrv1.MasterNode, ip st
 	// 	ip,
 	// )
 
+	ctx, obj := req.Context(), req.Object
+	dbName := fmt.Sprintf("cluster-%s", obj.Spec.ClusterName)
+
+	mysqlSecret, err := rApi.Get(
+		ctx, r.Client, types.NamespacedName{
+			Name:      fmt.Sprintf("mres-%s", dbName),
+			Namespace: constants.MainNs, // TODO
+		},
+		&corev1.Secret{},
+	)
+
+	if err != nil {
+		return err
+	}
+	// // we got uri for the node creation
+	uri, ok := mysqlSecret.Data["DSN"]
+
+	if !ok {
+		return fmt.Errorf("can't get dsn of db")
+	}
+
 	cmd := fmt.Sprintf(
 		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik --node-name=%q",
 		r.Env.SSHPath,
 		ip,
 		obj.Name,
-		obj.Spec.MysqlURI,
+		uri,
 		ip,
 		mNode(obj.Name),
 	)
 
-	_, err := fn.ExecCmd(cmd, "", false)
-	if err != nil {
+	if _, err = fn.ExecCmd(cmd, "", false); err != nil {
 		return err
 	}
 
@@ -331,7 +351,7 @@ func (r *MasterNodeReconciler) EnsureK3SInstalled(req *rApi.Request[*cmgrv1.Mast
 	}
 
 	if _, err := http.Get(fmt.Sprintf("http://%s:6443", ip)); err != nil {
-		if ee := r.installMasterOnNode(obj, ip); ee != nil {
+		if ee := r.installMasterOnNode(req, ip); ee != nil {
 			return failed(err)
 		}
 		return failed(err)
