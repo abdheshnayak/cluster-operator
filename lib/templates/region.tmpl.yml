@@ -9,4 +9,4 @@ metadata:
     kloudlite.io/cloud.provider: {{$provider}}
   name: {{$name}} 
 spec:
-  accountName: sample-account
+  accountName: {{$account}}
