@@ -175,11 +175,8 @@ func (r *EdgeReconciler) reconRegion(req *rApi.Request[*infrav1.Edge]) stepResul
 	_, err := functions.KubectlWithConfig(fmt.Sprintf("get %s/%s", constants.RegionKind, obj.Name), kubeconfigBytes)
 
 	if err != nil {
-		if !apiErrors.IsNotFound(err) {
-			return req.CheckFailed(RegionReady, check, err.Error())
-		}
 		if err := r.applyRegion(req); err != nil {
-			return req.CheckFailed(RegionReady, check, err.Error())
+			return failed(err)
 		}
 	}
 

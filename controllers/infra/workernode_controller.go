@@ -106,6 +106,10 @@ func (r *WorkerNodeReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		return step.ReconcilerResponse()
 	}
 
+	if step := r.EnsureSSH(req); !step.ShouldProceed() {
+		return step.ReconcilerResponse()
+	}
+
 	if step := r.ensureNodeCreated(req); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
