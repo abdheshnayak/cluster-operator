@@ -1,13 +1,32 @@
-package infra
+package nodejobcrgen
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type JobCrdSpecs struct {
+	Name               string
+	ProviderName       string
+	JobStorePath       string
+	JobTFTemplatesPath string
+	JobSSHPath         string
+	Provider           string
+	Config             string
+	AccountName        string
+	Region             string
+	Owners             []metav1.OwnerReference
+	ClusterName        string
+	NodeName           string
+}
 
 type doSpec struct {
 	Provider doProvider `yaml:"provider" json:"provider"`
-	Node     doNode     `yaml:"node" json:"node"`
+	Node     DoNode     `yaml:"node" json:"node"`
 }
 
 type awsSpec struct {
 	Provider awsProvider `yaml:"provider" json:"provider"`
-	Node     awsNode     `yaml:"node" json:"node"`
+	Node     AwsNode     `yaml:"node" json:"node"`
 }
 
 type doProvider struct {
@@ -18,17 +37,17 @@ type doProvider struct {
 type awsProvider struct {
 	AccessKey    string `yaml:"accessKey" json:"accessKey"`
 	AccessSecret string `yaml:"accessSecret" json:"accessSecret"`
-	AccountName    string `yaml:"accountId" json:"accountId"`
+	AccountName  string `yaml:"accountId" json:"accountId"`
 }
 
-type doNode struct {
+type DoNode struct {
 	Region  string `yaml:"region" json:"region"`
 	Size    string `yaml:"size" json:"size"`
 	NodeId  string `yaml:"nodeId,omitempty" json:"nodeId,omitempty"`
 	ImageId string `yaml:"imageId" json:"imageId"`
 }
 
-type awsNode struct {
+type AwsNode struct {
 	NodeId       string `yaml:"nodeId,omitempty" json:"nodeId,omitempty"`
 	Region       string `yaml:"region" json:"region"`
 	InstanceType string `yaml:"instanceType" json:"instanceType"`

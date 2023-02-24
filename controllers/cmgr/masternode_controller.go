@@ -17,6 +17,7 @@ import (
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	fn "github.com/kloudlite/cluster-operator/lib/functions"
 	"github.com/kloudlite/cluster-operator/lib/logging"
+	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -74,7 +75,7 @@ func (r *MasterNodeReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if step := req.EnsureChecks(MasterNodeReady, NodeCreated, K3SInstalled); !step.ShouldProceed() {
+	if step := req.EnsureChecks(MasterNodeReady, NodeCreated, K3SInstalled, SSHReady); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
 
@@ -103,6 +104,10 @@ func (r *MasterNodeReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		return step.ReconcilerResponse()
 	}
 
+	if step := r.EnsureSSH(req); !step.ShouldProceed() {
+		return step.ReconcilerResponse()
+	}
+
 	if step := r.EnsureNodeCreated(req); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
@@ -116,118 +121,34 @@ func (r *MasterNodeReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 	return ctrl.Result{RequeueAfter: ReconcilationPeriod * time.Second}, r.Status().Update(ctx, req.Object)
 }
 
-func mNode(name string) string {
-	return fmt.Sprintf("kl-byoc-master-%s", name)
-}
+func (r *MasterNodeReconciler) EnsureSSH(req *rApi.Request[*cmgrv1.MasterNode]) stepResult.Result {
 
-func (r *MasterNodeReconciler) getTFPath(obj *cmgrv1.MasterNode) string {
-	// eg -> /path/acc_id/do/blr1/node_id/do
-	// eg -> /path/acc_id/aws/ap-south-1/node_id/aws
-	tfPath := path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
-	r.logger.Debugf(tfPath)
-	return tfPath
-}
+	ctx, obj, checks := req.Context(), req.Object, req.Object.Status.Checks
+	check := rApi.Check{Generation: obj.Generation}
+	failed := func(err error) stepResult.Result {
+		return req.CheckFailed(SSHReady, check, err.Error())
+	}
 
-func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode]) error {
-
-	ctx, obj := req.Context(), req.Object
+	secName := fmt.Sprintf("ssh-cluster-%s", obj.Spec.ClusterName)
 
 	_, err := rApi.Get(
 		ctx, r.Client, types.NamespacedName{
-			Name:      fmt.Sprintf("create-node-%s", obj.Name),
-			Namespace: constants.MainNs,
-		},
-		&batchv1.Job{},
-	)
-
-	if err == nil {
-		return fmt.Errorf("creation of node is in progress")
-	}
-
-	jobOut, err := r.getJobCrd(req, true)
-	if err != nil {
-		return err
-	}
-
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *MasterNodeReconciler) deleteNode(req *rApi.Request[*cmgrv1.MasterNode]) error {
-	/*
-		1. check if deletion job is already present
-		- if present return with deletion in progress
-		- else create deletion Job
-	*/
-	// if job not created and node deleted then create job
-
-	// needs to create deletionJob
-	jobOut, err := r.getJobCrd(req, false)
-	if err != nil {
-		return err
-	}
-
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
-		return err
-	}
-
-	r.logger.Debugf("node scheduled to delete")
-	return nil
-}
-
-func (r *MasterNodeReconciler) installMasterOnNode(req *rApi.Request[*cmgrv1.MasterNode], ip string) error {
-	// cmd := fmt.Sprintf(
-	// 	"ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik",
-	// 	r.Env.SSHPath,
-	// 	ip,
-	// 	obj.Name,
-	// 	obj.Spec.MysqlURI,
-	// 	ip,
-	// )
-
-	ctx, obj := req.Context(), req.Object
-	dbName := fmt.Sprintf("cluster-%s", obj.Spec.ClusterName)
-
-	mysqlSecret, err := rApi.Get(
-		ctx, r.Client, types.NamespacedName{
-			Name:      fmt.Sprintf("mres-%s", dbName),
+			Name:      secName,
 			Namespace: constants.MainNs, // TODO
 		},
 		&corev1.Secret{},
 	)
-
 	if err != nil {
-		return err
-	}
-	// // we got uri for the node creation
-	uri, ok := mysqlSecret.Data["DSN"]
-
-	if !ok {
-		return fmt.Errorf("can't get dsn of db")
+		return failed(err)
 	}
 
-	cmd := fmt.Sprintf(
-		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik --node-name=%q",
-		r.Env.SSHPath,
-		ip,
-		obj.Name,
-		uri,
-		ip,
-		mNode(obj.Name),
-	)
-
-	if _, err = fn.ExecCmd(cmd, "", false); err != nil {
-		return err
+	check.Status = true
+	if check != checks[SSHReady] {
+		checks[SSHReady] = check
+		req.UpdateStatus()
 	}
 
-	return fmt.Errorf("installation in progress")
-}
-
-func (r *MasterNodeReconciler) removeMasterFromCluster(obj *cmgrv1.MasterNode) error {
-	return nil
+	return req.Next()
 }
 
 func (r *MasterNodeReconciler) EnsureNodeCreated(req *rApi.Request[*cmgrv1.MasterNode]) stepResult.Result {
@@ -464,6 +385,160 @@ func (r *MasterNodeReconciler) finalize(req *rApi.Request[*cmgrv1.MasterNode]) s
 		}
 		return req.FailWithStatusError(fmt.Errorf("deletion in progress"))
 	}
+}
+
+func mNode(name string) string {
+	return fmt.Sprintf("kl-byoc-master-%s", name)
+}
+
+func (r *MasterNodeReconciler) getTFPath(obj *cmgrv1.MasterNode) string {
+	// eg -> /path/acc_id/do/blr1/node_id/do
+	// eg -> /path/acc_id/aws/ap-south-1/node_id/aws
+	tfPath := path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
+	r.logger.Debugf(tfPath)
+	return tfPath
+}
+
+func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode]) error {
+
+	ctx, obj := req.Context(), req.Object
+
+	_, err := rApi.Get(
+		ctx, r.Client, types.NamespacedName{
+			Name:      fmt.Sprintf("create-node-%s", obj.Name),
+			Namespace: constants.MainNs,
+		},
+		&batchv1.Job{},
+	)
+
+	if err == nil {
+		return fmt.Errorf("creation of node is in progress")
+	}
+
+	// jobOut, err := r.getJobCrd(req, true)
+	// if err != nil {
+	// 	return err
+	// }
+
+	jobOut, err := nodejobcrgen.GetJobCrd(ctx, r.Client, nodejobcrgen.JobCrdSpecs{
+		Name:               obj.Name,
+		ProviderName:       obj.Spec.ProviderName,
+		JobStorePath:       r.Env.JobStorePath,
+		JobTFTemplatesPath: r.Env.JobTFTemplatesPath,
+		JobSSHPath:         r.Env.JobSSHPath,
+		Provider:           obj.Spec.Provider,
+		Config:             obj.Spec.Config,
+		AccountName:        obj.Spec.AccountName,
+		Region:             obj.Spec.Region,
+		Owners:             []metav1.OwnerReference{fn.AsOwner(obj, true)},
+		ClusterName:        obj.Spec.ClusterName,
+		NodeName:           mNode(obj.Name),
+	}, true)
+	if err != nil {
+		return err
+	}
+
+	// fmt.Println(string(jobOut_))
+
+	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *MasterNodeReconciler) deleteNode(req *rApi.Request[*cmgrv1.MasterNode]) error {
+	/*
+		1. check if deletion job is already present
+		- if present return with deletion in progress
+		- else create deletion Job
+	*/
+	// if job not created and node deleted then create job
+
+	// needs to create deletionJob
+	// jobOut, err := r.getJobCrd(req, false)
+	// if err != nil {
+	// 	return err
+	// }
+	ctx, obj := req.Context(), req.Object
+
+	jobOut, err := nodejobcrgen.GetJobCrd(ctx, r.Client, nodejobcrgen.JobCrdSpecs{
+		Name:               obj.Name,
+		ProviderName:       obj.Spec.ProviderName,
+		JobStorePath:       r.Env.JobStorePath,
+		JobTFTemplatesPath: r.Env.JobTFTemplatesPath,
+		JobSSHPath:         r.Env.JobSSHPath,
+		Provider:           obj.Spec.Provider,
+		Config:             obj.Spec.Config,
+		AccountName:        obj.Spec.AccountName,
+		Region:             obj.Spec.Region,
+		Owners:             []metav1.OwnerReference{fn.AsOwner(obj, true)},
+		ClusterName:        obj.Spec.ClusterName,
+		NodeName:           mNode(obj.Name),
+	}, false)
+	if err != nil {
+		return err
+	}
+
+	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+		return err
+	}
+
+	r.logger.Debugf("node scheduled to delete")
+	return nil
+}
+
+func (r *MasterNodeReconciler) installMasterOnNode(req *rApi.Request[*cmgrv1.MasterNode], ip string) error {
+	// cmd := fmt.Sprintf(
+	// 	"ssh  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik",
+	// 	r.Env.SSHPath,
+	// 	ip,
+	// 	obj.Name,
+	// 	obj.Spec.MysqlURI,
+	// 	ip,
+	// )
+
+	ctx, obj := req.Context(), req.Object
+	dbName := fmt.Sprintf("cluster-%s", obj.Spec.ClusterName)
+
+	mysqlSecret, err := rApi.Get(
+		ctx, r.Client, types.NamespacedName{
+			Name:      fmt.Sprintf("mres-%s", dbName),
+			Namespace: constants.MainNs, // TODO
+		},
+		&corev1.Secret{},
+	)
+
+	if err != nil {
+		return err
+	}
+	// // we got uri for the node creation
+	uri, ok := mysqlSecret.Data["EXTERNAL_DSN"]
+
+	if !ok {
+		return fmt.Errorf("can't get dsn of db")
+	}
+
+	cmd := fmt.Sprintf(
+		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik --node-name=%q",
+		r.Env.SSHPath,
+		ip,
+		obj.Name,
+		uri,
+		ip,
+		mNode(obj.Name),
+	)
+
+	if _, err = fn.ExecCmd(cmd, "", false); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("installation in progress")
+}
+
+func (r *MasterNodeReconciler) removeMasterFromCluster(obj *cmgrv1.MasterNode) error {
+	// TODO: have to delete from the node
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

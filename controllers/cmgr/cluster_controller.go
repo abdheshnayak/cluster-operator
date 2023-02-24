@@ -15,6 +15,7 @@ import (
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
+	"github.com/kloudlite/cluster-operator/lib/sshgen"
 	"github.com/kloudlite/cluster-operator/lib/templates"
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,6 +61,7 @@ const (
 
 const (
 	ClusterReady string = "cluster-ready"
+	SSHReady     string = "ssh-ready"
 	// ProviderAvailable   string = "provider-available"
 	// KubeConfigAvailable string = "kubeconfig-available"
 )
@@ -78,7 +80,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if step := req.EnsureChecks(ClusterReady); !step.ShouldProceed() {
+	if step := req.EnsureChecks(ClusterReady, SSHReady); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
 
@@ -108,6 +110,10 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request)
 	}
 
 	if step := r.fetchRequired(req); !step.ShouldProceed() {
+		return step.ReconcilerResponse()
+	}
+
+	if step := r.EnsureSSH(req); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
 
@@ -178,12 +184,63 @@ func (r *ClusterReconciler) fetchRequired(req *rApi.Request[*cmgrv1.Cluster]) st
 
 }
 
+func (r *ClusterReconciler) EnsureSSH(req *rApi.Request[*cmgrv1.Cluster]) stepResult.Result {
+
+	ctx, obj, checks := req.Context(), req.Object, req.Object.Status.Checks
+	check := rApi.Check{Generation: obj.Generation}
+	failed := func(err error) stepResult.Result {
+		return req.CheckFailed(SSHReady, check, err.Error())
+	}
+
+	secName := fmt.Sprintf("ssh-cluster-%s", obj.Name)
+
+	_, err := rApi.Get(
+		ctx, r.Client, types.NamespacedName{
+			Name:      secName,
+			Namespace: constants.MainNs, // TODO
+		},
+		&corev1.Secret{},
+	)
+	if err != nil {
+		if !apiErrors.IsNotFound(err) {
+			return failed(err)
+		}
+
+		private, public, err := sshgen.GenerateKeys()
+		if err != nil {
+			return failed(err)
+		}
+
+		if err = r.Client.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secName,
+				Namespace: constants.MainNs,
+			},
+			Data: map[string][]byte{
+				"access":     private,
+				"access.pub": public,
+			},
+		}); err != nil {
+			return failed(err)
+		}
+
+		return failed(fmt.Errorf("ssh for the cluster is generating"))
+		// needs to create
+	}
+
+	check.Status = true
+	if check != checks[SSHReady] {
+		checks[SSHReady] = check
+		req.UpdateStatus()
+	}
+
+	return req.Next()
+}
+
 func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster]) stepResult.Result {
 	ctx, obj, checks := req.Context(), req.Object, req.Object.Status.Checks
 	check := rApi.Check{Generation: obj.Generation}
 	failed := func(err error) stepResult.Result {
-		fmt.Println("here")
-		r.logger.Errorf(err, "")
 		return req.CheckFailed(ClusterReady, check, err.Error())
 	}
 	/*
@@ -290,7 +347,7 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 			return err
 		}
 		// // we got uri for the node creation
-		if _, ok = mysqlSecret.Data["DSN"]; !ok {
+		if _, ok = mysqlSecret.Data["EXTERNAL_DSN"]; !ok {
 			return fmt.Errorf("can't get dsn of db")
 		}
 

@@ -4,6 +4,7 @@
 {{- $klConfig := get . "klConfig"}}
 {{- $provider := get . "provider"}}
 {{- $ownerRefs := get . "ownerRefs" }}
+{{- $sshSecretName := get . "sshSecretName" }}
 
 apiVersion: batch/v1
 kind: Job
@@ -130,5 +131,5 @@ spec:
 
         - name: agent-ssh
           secret:
-            secretName: agent-ssh
+            secretName: {{ $sshSecretName }}
             # optional: false # default setting; "mysecret" must exist

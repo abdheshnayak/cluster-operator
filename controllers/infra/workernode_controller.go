@@ -2,16 +2,13 @@ package infra
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/kloudlite/cluster-operator/lib/kubectl"
-	"github.com/kloudlite/cluster-operator/lib/templates"
-	"gopkg.in/yaml.v2"
+	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,6 +55,7 @@ func (r *WorkerNodeReconciler) GetName() string {
 const (
 	NodeCreated  string = "node-created"
 	NodeAttached string = "node-attached"
+	SSHReady     string = "ssh-ready"
 )
 
 //+kubebuilder:rbac:groups=infra.kloudlite.io,resources=workernodes,verbs=get;list;watch;create;update;patch;delete
@@ -66,14 +64,12 @@ const (
 
 func (r *WorkerNodeReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 
-	return ctrl.Result{}, fmt.Errorf("off")
-
 	req, err := rApi.NewRequest(rApi.NewReconcilerCtx(ctx, r.logger), r.Client, request.NamespacedName, &infrav1.WorkerNode{})
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if step := req.EnsureChecks(NodeCreated, NodeAttached); !step.ShouldProceed() {
+	if step := req.EnsureChecks(NodeCreated, NodeAttached, SSHReady); !step.ShouldProceed() {
 		return step.ReconcilerResponse()
 	}
 
@@ -146,6 +142,36 @@ func (r *WorkerNodeReconciler) fetchRequired(req *rApi.Request[*infrav1.WorkerNo
 		return nil
 	}(); err != nil {
 		r.logger.Warnf(err.Error())
+	}
+
+	return req.Next()
+}
+
+func (r *WorkerNodeReconciler) EnsureSSH(req *rApi.Request[*infrav1.WorkerNode]) stepResult.Result {
+
+	ctx, obj, checks := req.Context(), req.Object, req.Object.Status.Checks
+	check := rApi.Check{Generation: obj.Generation}
+	failed := func(err error) stepResult.Result {
+		return req.CheckFailed(SSHReady, check, err.Error())
+	}
+
+	secName := fmt.Sprintf("ssh-cluster-%s", obj.Spec.ClusterName)
+
+	_, err := rApi.Get(
+		ctx, r.Client, types.NamespacedName{
+			Name:      secName,
+			Namespace: constants.MainNs, // TODO
+		},
+		&corev1.Secret{},
+	)
+	if err != nil {
+		return failed(err)
+	}
+
+	check.Status = true
+	if check != checks[SSHReady] {
+		checks[SSHReady] = check
+		req.UpdateStatus()
 	}
 
 	return req.Next()
@@ -260,8 +286,22 @@ func (r *WorkerNodeReconciler) ensureNodeAttached(req *rApi.Request[*infrav1.Wor
 
 func (r *WorkerNodeReconciler) deleteNode(req *rApi.Request[*infrav1.WorkerNode]) error {
 
-	// needs to create deletionJob
-	jobOut, err := r.getJobCrd(req, false)
+	ctx, obj := req.Context(), req.Object
+
+	jobOut, err := nodejobcrgen.GetJobCrd(ctx, r.Client, nodejobcrgen.JobCrdSpecs{
+		Name:               obj.Name,
+		ProviderName:       obj.Spec.ProviderName,
+		JobStorePath:       r.Env.JobStorePath,
+		JobTFTemplatesPath: r.Env.JobTFTemplatesPath,
+		JobSSHPath:         r.Env.JobSSHPath,
+		Provider:           obj.Spec.Provider,
+		Config:             obj.Spec.Config,
+		AccountName:        obj.Spec.AccountName,
+		Region:             obj.Spec.Region,
+		Owners:             []metav1.OwnerReference{fn.AsOwner(obj, true)},
+		ClusterName:        obj.Spec.ClusterName,
+		NodeName:           mNode(obj.Name),
+	}, false)
 	if err != nil {
 		return err
 	}
@@ -318,159 +358,6 @@ func (r *WorkerNodeReconciler) getTFPath(obj *infrav1.WorkerNode) string {
 	return path.Join(r.Env.StorePath, obj.Spec.AccountName, obj.Spec.Provider, obj.Spec.Region, mNode(obj.Name), obj.Spec.Provider)
 }
 
-func (r *WorkerNodeReconciler) getJobCrd(req *rApi.Request[*infrav1.WorkerNode], create bool) ([]byte, error) {
-
-	ctx, obj := req.Context(), req.Object
-
-	providerSec, err := rApi.Get(
-		ctx, r.Client, types.NamespacedName{
-			Name:      obj.Spec.ProviderName,
-			Namespace: constants.MainNs,
-		},
-		&corev1.Secret{},
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	klConfig := KLConf{
-		Version: "v1",
-		Values: KLConfValues{
-			StorePath:   r.Env.JobStorePath,
-			TfTemplates: r.Env.JobTFTemplatesPath,
-			SSHPath:     r.Env.JobSSHPath,
-		},
-	}
-
-	klConfigJsonBytes, err := yaml.Marshal(klConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	var config string
-	switch obj.Spec.Provider {
-	case "aws":
-
-		accessKey, ok := providerSec.Data["accessKey"]
-		if !ok {
-			return nil, fmt.Errorf("AccessKey not provided in provider secret")
-		}
-
-		accessSecret, ok := providerSec.Data["accessSecret"]
-		if !ok {
-			return nil, fmt.Errorf("AccessSecret not provided in provider secret")
-		}
-
-		var awsNodeConfig awsNode
-		if err = json.Unmarshal(
-			[]byte(req.Object.Spec.Config),
-			&awsNodeConfig,
-		); err != nil {
-			return nil, err
-		}
-
-		nodeConfig := awsConfig{
-			Version: "v1",
-			Action: func() string {
-				if create {
-					return "create"
-				}
-
-				return "delete"
-			}(),
-			Provider: "aws",
-			Spec: awsSpec{
-				Provider: awsProvider{
-					AccessKey:    string(accessKey),
-					AccessSecret: string(accessSecret),
-					AccountName:  obj.Spec.AccountName,
-				},
-				Node: awsNode{
-					NodeId:       mNode(obj.Name),
-					Region:       obj.Spec.Region,
-					InstanceType: awsNodeConfig.InstanceType,
-					VPC:          awsNodeConfig.VPC,
-				},
-			},
-		}
-
-		cYaml, e := yaml.Marshal(nodeConfig)
-		if e != nil {
-			return nil, e
-		}
-		config = base64.StdEncoding.EncodeToString(cYaml)
-
-	case "do":
-
-		apiToken, ok := providerSec.Data["apiToken"]
-		if !ok {
-			return nil, fmt.Errorf("apiToken not provided in provider secret")
-		}
-
-		var doNodeConfig doNode
-		if e := json.Unmarshal(
-			[]byte(req.Object.Spec.Config),
-			&doNodeConfig,
-		); e != nil {
-			return nil, e
-		}
-
-		nodeConfig := doConfig{
-			Version: "v1",
-			Action: func() string {
-				if create {
-					return "create"
-				}
-
-				return "delete"
-			}(),
-			Provider: req.Object.Spec.Provider,
-			Spec: doSpec{
-				Provider: doProvider{
-					ApiToken:    string(apiToken),
-					AccountName: req.Object.Spec.AccountName,
-				},
-				Node: doNode{
-					NodeId:  mNode(obj.Name),
-					Region:  req.Object.Spec.Region,
-					Size:    doNodeConfig.Size,
-					ImageId: doNodeConfig.ImageId,
-				},
-			},
-		}
-
-		cYaml, e := yaml.Marshal(nodeConfig)
-		if e != nil {
-			return nil, e
-		}
-		config = base64.StdEncoding.EncodeToString(cYaml)
-
-	default:
-		return nil, fmt.Errorf("unknown provider %s found", obj.Spec.Provider)
-	}
-
-	jobOut, err := templates.Parse(templates.NodeJob, map[string]any{
-		"name": func() string {
-			if create {
-				return fmt.Sprintf("create-node-%s", obj.Name)
-			}
-			return fmt.Sprintf("delete-node-%s", obj.Name)
-		}(),
-		"namespace":  constants.MainNs,
-		"nodeConfig": config,
-		"klConfig":   base64.StdEncoding.EncodeToString(klConfigJsonBytes),
-		"provider":   obj.Spec.Provider,
-		"ownerRefs":  []metav1.OwnerReference{fn.AsOwner(obj, true)},
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return jobOut, nil
-}
-
 func (r *WorkerNodeReconciler) createNode(req *rApi.Request[*infrav1.WorkerNode]) error {
 
 	ctx, obj := req.Context(), req.Object
@@ -487,7 +374,20 @@ func (r *WorkerNodeReconciler) createNode(req *rApi.Request[*infrav1.WorkerNode]
 		return fmt.Errorf("creation of node is in progress")
 	}
 
-	jobOut, err := r.getJobCrd(req, true)
+	jobOut, err := nodejobcrgen.GetJobCrd(ctx, r.Client, nodejobcrgen.JobCrdSpecs{
+		Name:               obj.Name,
+		ProviderName:       obj.Spec.ProviderName,
+		JobStorePath:       r.Env.JobStorePath,
+		JobTFTemplatesPath: r.Env.JobTFTemplatesPath,
+		JobSSHPath:         r.Env.JobSSHPath,
+		Provider:           obj.Spec.Provider,
+		Config:             obj.Spec.Config,
+		AccountName:        obj.Spec.AccountName,
+		Region:             obj.Spec.Region,
+		Owners:             []metav1.OwnerReference{fn.AsOwner(obj, true)},
+		ClusterName:        obj.Spec.ClusterName,
+		NodeName:           mNode(obj.Name),
+	}, true)
 	if err != nil {
 		return err
 	}
@@ -538,8 +438,6 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 		mNode(obj.Name),
 		strings.Join(labels, " "),
 	)
-
-	// fmt.Println("********************************************************************", cmd)
 
 	_, err = fn.ExecCmd(cmd, "", true)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"github.com/kloudlite/cluster-operator/lib/functions"
 	"github.com/kloudlite/cluster-operator/lib/kresource"
 	"github.com/kloudlite/cluster-operator/lib/logging"
+	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
 	"github.com/kloudlite/cluster-operator/lib/rcalculate"
@@ -216,7 +217,7 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 		return failed(fmt.Errorf("instance-details not found to make decision"))
 	}
 
-	getResourceSize := func(node infrav1.WorkerNode) rcalculate.Size {
+	getResourceSize := func(node infrav1.WorkerNode) (*rcalculate.Size, error) {
 		size := rcalculate.Size{
 			Memory: 0,
 			Cpu:    0,
@@ -224,24 +225,42 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 
 		switch node.Spec.Provider {
 		case "do":
-		case "aws":
-			var nodeConf awsNode
+			var nodeConf nodejobcrgen.DoNode
 			if err := json.Unmarshal([]byte(node.Spec.Config), &nodeConf); err != nil {
-				size = rcalculate.Size{
-					Memory: 0,
-					Cpu:    0,
-				}
+				return nil, err
+			}
+
+			res, ok := miDetails.Do[nodeConf.Size]
+			if !ok {
+				return nil, fmt.Errorf("details of node type %s not found", nodeConf.Size)
 			}
 
 			size = rcalculate.Size{
-				Memory: miDetails.Aws[nodeConf.InstanceType].Memory,
-				Cpu:    miDetails.Aws[nodeConf.InstanceType].Cpu,
+				Memory: res.Memory,
+				Cpu:    res.Cpu,
+			}
+
+		case "aws":
+			var nodeConf nodejobcrgen.AwsNode
+			if err := json.Unmarshal([]byte(node.Spec.Config), &nodeConf); err != nil {
+				return nil, err
+			}
+
+			res, ok := miDetails.Aws[nodeConf.InstanceType]
+			if !ok {
+				return nil, fmt.Errorf("details of instance type %s not found", nodeConf.InstanceType)
+			}
+
+			size = rcalculate.Size{
+				Memory: res.Memory,
+				Cpu:    res.Cpu,
 			}
 		}
-		return rcalculate.Size{
+
+		return &rcalculate.Size{
 			Memory: size.Memory * 1000,
 			Cpu:    size.Cpu * 1000,
-		}
+		}, nil
 	}
 
 	totalUsedRes, err := kresource.GetTotalPodRequest(
@@ -264,22 +283,28 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 		return req.CheckFailed(WorkerNodesReady, check, err.Error())
 	}
 
+	var nodes []rcalculate.Node
+
+	for _, n := range workerNodes.Items {
+
+		resSize, err := getResourceSize(n)
+		if err != nil {
+			return failed(fmt.Errorf("error on node %s, [%s]", n.Name, err.Error()))
+		}
+
+		nodes = append(
+			nodes, rcalculate.Node{
+				Name:     n.Name,
+				Stateful: n.Spec.Stateful,
+				Size:     *resSize,
+			},
+		)
+	}
+
 	i := rcalculate.Input{
-		MinNode: obj.Spec.Min,
-		MaxNode: obj.Spec.Max,
-		Nodes: func() []rcalculate.Node {
-			rk := make([]rcalculate.Node, 0)
-			for _, n := range workerNodes.Items {
-				rk = append(
-					rk, rcalculate.Node{
-						Name:     n.Name,
-						Stateful: n.Spec.Stateful,
-						Size:     getResourceSize(n),
-					},
-				)
-			}
-			return rk
-		}(),
+		MinNode:      obj.Spec.Min,
+		MaxNode:      obj.Spec.Max,
+		Nodes:        nodes,
 		StatefulUsed: totalStatefulUsedRes.Memory,
 		TotalUsed:    totalUsedRes.Memory,
 		Threshold:    80,

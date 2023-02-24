@@ -12,6 +12,7 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/yext/yerrors v0.0.0-20201026182705-b30cf71caa54
 	go.uber.org/zap v1.21.0
+	golang.org/x/crypto v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
@@ -74,7 +75,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.3.0 // indirect
