@@ -3,10 +3,12 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -163,7 +165,7 @@ func (r *WorkerNodeReconciler) EnsureSSH(req *rApi.Request[*infrav1.WorkerNode])
 
 	secName := fmt.Sprintf("ssh-cluster-%s", obj.Spec.ClusterName)
 
-	_, err := rApi.Get(
+	sec, err := rApi.Get(
 		ctx, r.Client, types.NamespacedName{
 			Name:      secName,
 			Namespace: constants.MainNs, // TODO
@@ -173,6 +175,8 @@ func (r *WorkerNodeReconciler) EnsureSSH(req *rApi.Request[*infrav1.WorkerNode])
 	if err != nil {
 		return failed(err)
 	}
+
+	rApi.SetLocal(req, "ssh-sec", sec)
 
 	check.Status = true
 	if check != checks[SSHReady] {
@@ -434,9 +438,31 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 		return l
 	}()
 
+	sshSec, ok := rApi.GetLocal[*corev1.Secret](req, "ssh-sec")
+	if !ok {
+		return fmt.Errorf("no ssh sec found")
+	}
+
+	access, ok := sshSec.Data["access"]
+	if !ok {
+		return fmt.Errorf("access not available in sec")
+	}
+
+	filename, err := uuid.GenerateUUID()
+	if err != nil {
+		return err
+	}
+
+	s := os.TempDir()
+	fname := fmt.Sprintf("%s/%s", s, filename)
+	if err := os.WriteFile(fname, access, 0400); err != nil {
+		return err
+	}
+	defer os.Remove(fname)
+
 	cmd := fmt.Sprintf(
 		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh agent --token=%s --server https://%s:6443 --node-external-ip %s --node-name %s %s",
-		r.Env.SSHPath,
+		fname,
 		ip,
 		strings.TrimSpace(string(token)),
 		serverIp,

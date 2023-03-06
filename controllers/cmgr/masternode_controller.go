@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 
 	"gopkg.in/yaml.v2"
 
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	cmgrv1 "github.com/kloudlite/cluster-operator/apis/cmgr/v1"
 
 	"github.com/kloudlite/cluster-operator/env"
@@ -134,16 +136,19 @@ func (r *MasterNodeReconciler) EnsureSSH(req *rApi.Request[*cmgrv1.MasterNode]) 
 
 	secName := fmt.Sprintf("ssh-cluster-%s", obj.Spec.ClusterName)
 
-	_, err := rApi.Get(
+	sec, err := rApi.Get(
 		ctx, r.Client, types.NamespacedName{
 			Name:      secName,
 			Namespace: constants.MainNs, // TODO
 		},
 		&corev1.Secret{},
 	)
+
 	if err != nil {
 		return failed(err)
 	}
+
+	rApi.SetLocal(req, "ssh-sec", sec)
 
 	check.Status = true
 	if check != checks[SSHReady] {
@@ -202,7 +207,29 @@ func (r *MasterNodeReconciler) EnsureNodeCreated(req *rApi.Request[*cmgrv1.Maste
 func (r *MasterNodeReconciler) syncKubeConfig(req *rApi.Request[*cmgrv1.MasterNode], ip string, update bool) error {
 	ctx, obj := req.Context(), req.Object
 
-	out, err := fn.ExecCmd(fmt.Sprintf("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s cat /etc/rancher/k3s/k3s.yaml", r.Env.SSHPath, ip), "", true)
+	sshSec, ok := rApi.GetLocal[*corev1.Secret](req, "ssh-sec")
+	if !ok {
+		return fmt.Errorf("no ssh sec found")
+	}
+
+	access, ok := sshSec.Data["access"]
+	if !ok {
+		return fmt.Errorf("access not available in sec")
+	}
+
+	filename, err := uuid.GenerateUUID()
+	if err != nil {
+		return err
+	}
+
+	s := os.TempDir()
+	fname := fmt.Sprintf("%s/%s", s, filename)
+	if err := os.WriteFile(fname, access, 0400); err != nil {
+		return err
+	}
+	defer os.Remove(fname)
+
+	out, err := fn.ExecCmd(fmt.Sprintf("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s cat /etc/rancher/k3s/k3s.yaml", fname, ip), "", true)
 	if err != nil {
 		return err
 	}
@@ -221,7 +248,7 @@ func (r *MasterNodeReconciler) syncKubeConfig(req *rApi.Request[*cmgrv1.MasterNo
 		return err
 	}
 
-	tokenOut, err := fn.ExecCmd(fmt.Sprintf("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s cat /var/lib/rancher/k3s/server/node-token", r.Env.SSHPath, ip), "", true)
+	tokenOut, err := fn.ExecCmd(fmt.Sprintf("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s cat /var/lib/rancher/k3s/server/node-token", fname, ip), "", true)
 	if err != nil {
 		return err
 	}
@@ -522,9 +549,31 @@ func (r *MasterNodeReconciler) installMasterOnNode(req *rApi.Request[*cmgrv1.Mas
 		return fmt.Errorf("can't get dsn of db")
 	}
 
+	sshSec, ok := rApi.GetLocal[*corev1.Secret](req, "ssh-sec")
+	if !ok {
+		return fmt.Errorf("no ssh sec found")
+	}
+
+	access, ok := sshSec.Data["access"]
+	if !ok {
+		return fmt.Errorf("access not available in sec")
+	}
+
+	filename, err := uuid.GenerateUUID()
+	if err != nil {
+		return err
+	}
+
+	s := os.TempDir()
+	fname := fmt.Sprintf("%s/%s", s, filename)
+	if err := os.WriteFile(fname, access, 0400); err != nil {
+		return err
+	}
+	defer os.Remove(fname)
+
 	cmd := fmt.Sprintf(
 		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh server --token=%q  --datastore-endpoint=%q --node-external-ip %s --flannel-backend wireguard-native --flannel-external-ip --disable traefik --node-name=%q",
-		r.Env.SSHPath,
+		fname,
 		ip,
 		obj.Name,
 		uri,
