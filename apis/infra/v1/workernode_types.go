@@ -45,6 +45,12 @@ type WorkerNode struct {
 	Status rApi.Status    `json:"status,omitempty"`
 }
 
+func (wn *WorkerNode) EnsureGVK() {
+	if wn != nil {
+		wn.SetGroupVersionKind(GroupVersion.WithKind("WorkerNode"))
+	}
+}
+
 func (a *WorkerNode) GetEnsuredAnnotations() map[string]string {
 	instance := ""
 	var kv map[string]string

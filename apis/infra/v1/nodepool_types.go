@@ -37,22 +37,28 @@ type NodePool struct {
 	Status rApi.Status  `json:"status,omitempty"`
 }
 
-func (a *NodePool) GetEnsuredAnnotations() map[string]string {
-	return map[string]string{
-		"min-max":         fmt.Sprintf("%d/%d", a.Spec.Min, a.Spec.Max),
-		"provider-region": fmt.Sprintf("%s/%s", a.Spec.Provider, a.Spec.Region),
+func (np *NodePool) EnsureGVK() {
+	if np != nil {
+		np.SetGroupVersionKind(GroupVersion.WithKind("NodePool"))
 	}
 }
 
-func (a *NodePool) GetEnsuredLabels() map[string]string {
+func (np *NodePool) GetEnsuredAnnotations() map[string]string {
 	return map[string]string{
-		"kloudlite.io/node-pool":     a.Name,
-		"kloudlite.io/provider.name": a.Spec.ProviderName,
+		"min-max":         fmt.Sprintf("%d/%d", np.Spec.Min, np.Spec.Max),
+		"provider-region": fmt.Sprintf("%s/%s", np.Spec.Provider, np.Spec.Region),
 	}
 }
 
-func (a *NodePool) GetStatus() *rApi.Status {
-	return &a.Status
+func (np *NodePool) GetEnsuredLabels() map[string]string {
+	return map[string]string{
+		"kloudlite.io/node-pool":     np.Name,
+		"kloudlite.io/provider.name": np.Spec.ProviderName,
+	}
+}
+
+func (np *NodePool) GetStatus() *rApi.Status {
+	return &np.Status
 }
 
 // +kubebuilder:object:root=true

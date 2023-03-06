@@ -36,6 +36,12 @@ type MasterNode struct {
 	Status rApi.Status    `json:"status,omitempty"`
 }
 
+func (mn *MasterNode) EnsureGVK() {
+	if mn != nil {
+		mn.SetGroupVersionKind(GroupVersion.WithKind("MasterNode"))
+	}
+}
+
 func (in *MasterNode) GetEnsuredAnnotations() map[string]string {
 	instance := ""
 	var kv map[string]string
