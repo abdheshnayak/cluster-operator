@@ -46,6 +46,8 @@ type WorkerNodeReconciler struct {
 	logger logging.Logger
 	Name   string
 	Env    *env.Env
+
+	yamlClient *kubectl.YAMLClient
 }
 
 func (r *WorkerNodeReconciler) GetName() string {
@@ -310,7 +312,7 @@ func (r *WorkerNodeReconciler) deleteNode(req *rApi.Request[*infrav1.WorkerNode]
 		return err
 	}
 
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+	if err := r.yamlClient.ApplyYAML(ctx, jobOut); err != nil {
 		return err
 	}
 
@@ -396,7 +398,7 @@ func (r *WorkerNodeReconciler) createNode(req *rApi.Request[*infrav1.WorkerNode]
 		return err
 	}
 
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+	if err := r.yamlClient.ApplyYAML(ctx, jobOut); err != nil {
 		return err
 	}
 
@@ -455,6 +457,7 @@ func (r *WorkerNodeReconciler) SetupWithManager(mgr ctrl.Manager, logger logging
 	r.logger = logger.WithName(r.Name)
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
+	r.yamlClient = kubectl.NewYAMLClientOrDie(mgr.GetConfig())
 
 	builder := ctrl.NewControllerManagedBy(mgr).For(&infrav1.WorkerNode{})
 	builder.Owns(&batchv1.Job{})

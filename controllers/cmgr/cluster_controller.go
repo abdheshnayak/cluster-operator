@@ -12,6 +12,7 @@ import (
 	"github.com/kloudlite/cluster-operator/env"
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	fn "github.com/kloudlite/cluster-operator/lib/functions"
+	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
@@ -49,6 +50,8 @@ type ClusterReconciler struct {
 	Scheme *runtime.Scheme
 	logger logging.Logger
 	Name   string
+
+	yamlClient *kubectl.YAMLClient
 }
 
 func (r *ClusterReconciler) GetName() string {
@@ -317,9 +320,10 @@ func (r *ClusterReconciler) ReconcileCluster(req *rApi.Request[*cmgrv1.Cluster])
 				return err
 			}
 
-			if _, err = fn.KubectlApplyExec(res); err != nil {
+			if err = r.yamlClient.ApplyYAML(ctx, res); err != nil {
 				return err
 			}
+
 			return fmt.Errorf("managed resource creating")
 		}
 
@@ -486,6 +490,7 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager, logger logging.Lo
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 	r.logger = logger.WithName(r.Name)
+	r.yamlClient = kubectl.NewYAMLClientOrDie(mgr.GetConfig())
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cmgrv1.Cluster{}).

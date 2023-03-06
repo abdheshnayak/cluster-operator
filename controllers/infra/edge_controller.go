@@ -13,6 +13,7 @@ import (
 
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	"github.com/kloudlite/cluster-operator/lib/functions"
+	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	"github.com/kloudlite/cluster-operator/lib/templates"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,8 @@ type EdgeReconciler struct {
 	Scheme *runtime.Scheme
 	logger logging.Logger
 	Name   string
+
+	yamlClient *kubectl.YAMLClient
 }
 
 const (
@@ -257,6 +260,8 @@ func (r *EdgeReconciler) reconPool(req *rApi.Request[*infrav1.Edge]) stepResult.
 
 func (r *EdgeReconciler) applyRegion(req *rApi.Request[*infrav1.Edge]) error {
 
+	ctx := req.Context()
+
 	if b, err := templates.Parse(
 		templates.Region, map[string]any{
 			"name":     req.Object.Name,
@@ -277,7 +282,13 @@ func (r *EdgeReconciler) applyRegion(req *rApi.Request[*infrav1.Edge]) error {
 			return fmt.Errorf("cluster config not found in secret")
 		}
 
-		if _, err = functions.KubectlApplyExecWithConfig(b, kubeconfigBytes); err != nil {
+		yClient, err := kubectl.NewYAMLClientWithConfig(kubeconfigBytes)
+
+		if err != nil {
+			return err
+		}
+
+		if err = yClient.ApplyYAML(ctx, b); err != nil {
 			return err
 		}
 	}
@@ -286,7 +297,7 @@ func (r *EdgeReconciler) applyRegion(req *rApi.Request[*infrav1.Edge]) error {
 }
 
 func (r *EdgeReconciler) UpdatePool(req *rApi.Request[*infrav1.Edge]) error {
-	obj := req.Object
+	ctx, obj := req.Context(), req.Object
 	b, err := templates.Parse(
 		templates.NodePools, map[string]any{"pools": func() []infrav1.NodePool {
 			pls := make([]infrav1.NodePool, 0)
@@ -324,7 +335,7 @@ func (r *EdgeReconciler) UpdatePool(req *rApi.Request[*infrav1.Edge]) error {
 
 	// fmt.Println(string(b))
 
-	if _, err = functions.KubectlApplyExec(b); err != nil {
+	if err = r.yamlClient.ApplyYAML(ctx, b); err != nil {
 		return err
 	}
 
@@ -399,6 +410,7 @@ func (r *EdgeReconciler) SetupWithManager(mgr ctrl.Manager, logger logging.Logge
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 	r.logger = logger.WithName(r.Name)
+	r.yamlClient = kubectl.NewYAMLClientOrDie(mgr.GetConfig())
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.Edge{}).

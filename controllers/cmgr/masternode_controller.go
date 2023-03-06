@@ -16,6 +16,7 @@ import (
 
 	"github.com/kloudlite/cluster-operator/lib/constants"
 	fn "github.com/kloudlite/cluster-operator/lib/functions"
+	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	"github.com/kloudlite/cluster-operator/lib/logging"
 	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
@@ -42,6 +43,8 @@ type MasterNodeReconciler struct {
 	Scheme *runtime.Scheme
 	logger logging.Logger
 	Name   string
+
+	yamlClient *kubectl.YAMLClient
 }
 
 func (r *MasterNodeReconciler) GetName() string {
@@ -440,7 +443,7 @@ func (r *MasterNodeReconciler) createNode(req *rApi.Request[*cmgrv1.MasterNode])
 
 	// fmt.Println(string(jobOut_))
 
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+	if err = r.yamlClient.ApplyYAML(ctx, jobOut); err != nil {
 		return err
 	}
 
@@ -480,7 +483,7 @@ func (r *MasterNodeReconciler) deleteNode(req *rApi.Request[*cmgrv1.MasterNode])
 		return err
 	}
 
-	if _, err = fn.KubectlApplyExec(jobOut); err != nil {
+	if err := r.yamlClient.ApplyYAML(ctx, jobOut); err != nil {
 		return err
 	}
 
@@ -546,6 +549,7 @@ func (r *MasterNodeReconciler) SetupWithManager(mgr ctrl.Manager, logger logging
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 	r.logger = logger.WithName(r.Name)
+	r.yamlClient = kubectl.NewYAMLClientOrDie(mgr.GetConfig())
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cmgrv1.MasterNode{}).

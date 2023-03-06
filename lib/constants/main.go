@@ -9,6 +9,9 @@ const (
 const (
 	MainNs string = "kl-core"
 )
+const (
+	LastAppliedKey string = "kloudlite.io/last-applied"
+)
 
 const (
 	ClearStatusKey string = "kloudlite.io/clear-status"
