@@ -18,7 +18,7 @@ type ObjectRef struct {
 type CloudProviderSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	AccountName string `json:"accountName"`
+	AccountName    string    `json:"accountName"`
 	ProviderSecret ObjectRef `json:"providerSecret"`
 }
 
@@ -36,8 +36,10 @@ type CloudProvider struct {
 	Status rApi.Status       `json:"status,omitempty"`
 }
 
-func (cp *CloudProvider) GetGVK() schema.GroupVersionKind {
-	return GroupVersion.WithKind("CloudProvider")
+func (cp *CloudProvider) EnsureGVK() {
+	if cp != nil {
+		cp.SetGroupVersionKind(GroupVersion.WithKind("CloudProvider"))
+	}
 }
 
 func (in *CloudProvider) GetEnsuredAnnotations() map[string]string {

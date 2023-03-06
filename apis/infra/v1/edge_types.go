@@ -10,7 +10,7 @@ import (
 
 type Pool struct {
 	// +kubebuilder:validation:MinLength=1
-	Name   string `json:"name"`
+	Name string `json:"name"`
 	// +kubebuilder:validation:MinLength=1
 	Config string `json:"config"`
 	Min    int    `json:"min,omitempty"`
@@ -20,15 +20,15 @@ type Pool struct {
 // EdgeSpec defines the desired state of Edge
 type EdgeSpec struct {
 	// +kubebuilder:validation:MinLength=1
-	AccountName  string `json:"accountName"`
+	AccountName string `json:"accountName"`
 	// +kubebuilder:validation:MinLength=1
-	Provider     string `json:"provider,omitempty"`
+	Provider string `json:"provider,omitempty"`
 	// +kubebuilder:validation:MinLength=1
-	Region       string `json:"region"`
+	Region string `json:"region"`
 	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
 	// +kubebuilder:validation:MinLength=1
-	ClusterName  string `json:"clusterName"`
+	ClusterName string `json:"clusterName"`
 
 	Pools []Pool `json:"pools,omitempty"`
 }
@@ -49,6 +49,12 @@ type Edge struct {
 
 	Spec   EdgeSpec    `json:"spec,omitempty"`
 	Status rApi.Status `json:"status,omitempty"`
+}
+
+func (e *Edge) EnsureGVK() {
+	if e != nil {
+		e.SetGroupVersionKind(GroupVersion.WithKind("Edge"))
+	}
 }
 
 func (a *Edge) GetEnsuredAnnotations() map[string]string {

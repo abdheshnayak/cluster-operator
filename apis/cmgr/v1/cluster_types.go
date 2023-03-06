@@ -3,22 +3,23 @@ package v1
 import (
 	rApi "github.com/kloudlite/cluster-operator/lib/operator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
 	// +kubebuilder:validation:MinLength=1
-	AccountName  string `json:"accountName"`
+	AccountName string `json:"accountName"`
 	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
 	// +kubebuilder:validation:MinLength=1
-	Provider     string `json:"provider"`
+	Provider string `json:"provider"`
 	// +kubebuilder:validation:Min: 0
-	Count        int    `json:"count"`
+	Count int `json:"count"`
 	// +kubebuilder:validation:MinLength=1
-	Region       string `json:"region"`
+	Region string `json:"region"`
 	// +kubebuilder:validation:MinLength=1
-	Config       string `json:"config"`
+	Config string `json:"config"`
 }
 
 //+kubebuilder:object:root=true
@@ -35,6 +36,12 @@ type Cluster struct {
 
 	Spec   ClusterSpec `json:"spec,omitempty"`
 	Status rApi.Status `json:"status,omitempty"`
+}
+
+func (c *Cluster) EnsureGVK() {
+	if c != nil {
+		c.SetGroupVersionKind(GroupVersion.WithKind("Cluster"))
+	}
 }
 
 func (in *Cluster) GetEnsuredAnnotations() map[string]string {
