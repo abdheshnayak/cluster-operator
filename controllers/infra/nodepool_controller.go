@@ -113,7 +113,7 @@ func (r *NodePoolReconciler) finalize(req *rApi.Request[*infrav1.NodePool]) step
 	if err := r.Client.List(
 		ctx, &workerNodes, &client.ListOptions{
 			LabelSelector: apiLabels.SelectorFromValidatedSet(
-				map[string]string{constants.RegionKey: obj.Spec.EdgeName},
+				map[string]string{"kloudlite.io/node-pool": obj.Name},
 			),
 		},
 	); err != nil {
@@ -201,7 +201,7 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 		ctx, &workerNodes, &client.ListOptions{
 			LabelSelector: apiLabels.SelectorFromValidatedSet(
 				apiLabels.Set{
-					constants.RegionKey: obj.Spec.EdgeName,
+					"kloudlite.io/node-pool": obj.Name,
 				},
 			),
 		},
