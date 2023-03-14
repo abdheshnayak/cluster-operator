@@ -431,6 +431,7 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 		for k, v := range map[string]string{
 			"kloudlite.io/region":     obj.Spec.EdgeName,
 			"kloudlite.io/node.index": fmt.Sprint(obj.Spec.Index),
+			"kloudlite.io/node.pool":  obj.Spec.Pool,
 		} {
 			l = append(l, fmt.Sprintf("--node-label %s=%s", k, v))
 		}
