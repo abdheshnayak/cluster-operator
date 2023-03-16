@@ -85,6 +85,7 @@ func GetJobCrd(ctx context.Context, client client.Client, obj JobCrdSpecs, creat
 					NodeId:       obj.NodeName,
 					Region:       obj.Region,
 					InstanceType: awsNodeConfig.InstanceType,
+					ImageId:      awsNodeConfig.ImageId,
 					VPC:          awsNodeConfig.VPC,
 				},
 			},

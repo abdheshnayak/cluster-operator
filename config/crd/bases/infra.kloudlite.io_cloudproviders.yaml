@@ -43,6 +43,12 @@ spec:
               accountName:
                 minLength: 1
                 type: string
+              display_name:
+                minLength: 1
+                type: string
+              provider:
+                minLength: 1
+                type: string
               providerSecret:
                 properties:
                   name:
@@ -57,6 +63,8 @@ spec:
                 type: object
             required:
             - accountName
+            - display_name
+            - provider
             - providerSecret
             type: object
           status:

@@ -199,6 +199,7 @@ func KubectlWithConfig(command string, config []byte) ([]byte, error) {
 	if err := os.WriteFile(fname, config, os.ModePerm); err != nil {
 		return nil, err
 	}
+	defer os.Remove(fname)
 
 	r := csv.NewReader(strings.NewReader(command))
 	r.Comma = ' '
@@ -230,6 +231,7 @@ func KubectlApplyExecWithConfig(stdin []byte, config []byte) (stdout *bytes.Buff
 	if err := os.WriteFile(fname, config, os.ModePerm); err != nil {
 		return nil, err
 	}
+	defer os.Remove(fname)
 
 	c := exec.Command("kubectl", "apply", "-f", "-")
 	outStream, errStream := bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{})

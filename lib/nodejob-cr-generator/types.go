@@ -52,6 +52,7 @@ type AwsNode struct {
 	Region       string `yaml:"region" json:"region"`
 	InstanceType string `yaml:"instanceType" json:"instanceType"`
 	VPC          string `yaml:"vpc,omitempty" json:"vpc,omitempty"`
+	ImageId      string `yaml:"imageId,omitempty" json:"imageId,omitempty"`
 }
 
 type doConfig struct {
