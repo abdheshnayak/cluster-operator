@@ -9,15 +9,24 @@ import (
 
 // NodePoolSpec defines the desired state of NodePool
 type NodePoolSpec struct {
-	AccountName  string `json:"accountName"`
-	ClusterName  string `json:"clusterName"`
-	EdgeName     string `json:"edgeName"`
-	Provider     string `json:"provider"`
+	// +kubebuilder:validation:MinLength=1
+	AccountName string `json:"accountName"`
+	// +kubebuilder:validation:MinLength=1
+	ClusterName string `json:"clusterName"`
+	// +kubebuilder:validation:MinLength=1
+	EdgeName string `json:"edgeName"`
+	// +kubebuilder:validation:MinLength=1
+	Provider string `json:"provider"`
+	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
-	Region       string `json:"region"`
-	Config       string `json:"config"`
-	Min          int    `json:"min,omitempty"`
-	Max          int    `json:"max,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Region string `json:"region"`
+	// +kubebuilder:validation:MinLength=1
+	Config string `json:"config"`
+	// +kubebuilder:validation:Min: 0
+	Min int `json:"min,omitempty"`
+	// +kubebuilder:validation:Min: 0
+	Max int `json:"max,omitempty"`
 }
 
 // +kubebuilder:object:root=true

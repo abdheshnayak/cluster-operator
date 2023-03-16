@@ -10,12 +10,17 @@ import (
 
 // MasterNodeSpec defines the desired state of MasterNode
 type MasterNodeSpec struct {
+	// +kubebuilder:validation:MinLength=1
 	AccountName string `json:"accountName"`
+	// +kubebuilder:validation:MinLength=1
 	ClusterName string `json:"clusterName"`
-	// MysqlURI     string `json:"mysqlURI"`
+	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
+	// +kubebuilder:validation:MinLength=1
 	Provider     string `json:"provider"`
+	// +kubebuilder:validation:MinLength=1
 	Config       string `json:"config"`
+	// +kubebuilder:validation:MinLength=1
 	Region       string `json:"region"`
 }
 

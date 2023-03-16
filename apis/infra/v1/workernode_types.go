@@ -9,19 +9,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // WorkerNodeSpec defines the desired state of WorkerNode
 type WorkerNodeSpec struct {
 	Stateful     bool   `json:"stateful,omitempty"`
+	// +kubebuilder:validation:MinLength=1
 	ClusterName  string `json:"clusterName"`
+	// +kubebuilder:validation:MinLength=1
 	AccountName  string `json:"accountName"`
+	// +kubebuilder:validation:MinLength=1
 	Region       string `json:"region"`
+	// +kubebuilder:validation:MinLength=1
 	EdgeName     string `json:"edgeName"`
+	// +kubebuilder:validation:MinLength=1
 	Provider     string `json:"provider"`
+	// +kubebuilder:validation:MinLength=1
 	ProviderName string `json:"providerName"`
+	// +kubebuilder:validation:MinLength=1
 	Config       string `json:"config"`
+	// +kubebuilder:validation:MinLength=1
 	Pool         string `json:"pool"`
 	// +kubebuilder:default=0
 	Index int `json:"nodeIndex,omitempty"`

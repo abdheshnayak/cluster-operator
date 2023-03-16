@@ -15,14 +15,11 @@ type ObjectRef struct {
 
 // CloudProviderSpec defines the desired state of CloudProvider
 type CloudProviderSpec struct {
-	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	AccountName    string    `json:"accountName"`
 	ProviderSecret ObjectRef `json:"providerSecret"`
-	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Provider string `json:"provider"`
-	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	DisplayName string `json:"display_name"`
 }
