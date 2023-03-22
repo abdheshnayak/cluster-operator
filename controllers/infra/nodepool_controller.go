@@ -159,8 +159,9 @@ type iDetails struct {
 }
 
 type iDetail struct {
-	Cpu    int `json:"cpu" yaml:"cpu"`
-	Memory int `json:"memory" yaml:"memory"`
+	Cpu    int  `json:"cpu" yaml:"cpu"`
+	Memory int  `json:"memory" yaml:"memory"`
+	Gpu    bool `json:"gpu" yaml:"gpu"`
 }
 
 func (r *NodePoolReconciler) fetchRequired(req *rApi.Request[*infrav1.NodePool]) stepResult.Result {
@@ -268,6 +269,7 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 			constants.RegionKey: obj.Spec.EdgeName,
 		}, "requests",
 	)
+
 	if err != nil {
 		return req.CheckFailed(WorkerNodesReady, check, err.Error())
 	}

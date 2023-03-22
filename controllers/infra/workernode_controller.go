@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/kloudlite/cluster-operator/lib/kubectl"
 	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
+	"gopkg.in/yaml.v2"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -147,6 +149,26 @@ func (r *WorkerNodeReconciler) fetchRequired(req *rApi.Request[*infrav1.WorkerNo
 
 		rApi.SetLocal(req, "kubeconfig-sec", kubeConfig)
 
+		return nil
+	}(); err != nil {
+		r.logger.Warnf(err.Error())
+	}
+
+	if err := func() error {
+		iDetailsConfig, err := rApi.Get(ctx, r.Client, types.NamespacedName{
+			Namespace: "kl-core",
+			Name:      "instance-details",
+		}, &corev1.ConfigMap{})
+		if err != nil {
+			return err
+		}
+
+		var miDetails iDetails
+		if err := yaml.Unmarshal([]byte(iDetailsConfig.Data["details"]), &miDetails); err != nil {
+			return err
+		}
+
+		rApi.SetLocal(req, "instance-details", miDetails)
 		return nil
 	}(); err != nil {
 		r.logger.Warnf(err.Error())
@@ -327,28 +349,32 @@ func (r *WorkerNodeReconciler) finalize(req *rApi.Request[*infrav1.WorkerNode]) 
 	ctx, obj := req.Context(), req.Object
 	failed := req.FailWithStatusError
 
-	node, err := rApi.Get(ctx, r.Client, types.NamespacedName{
-		Name: mNode(obj.Name),
-	}, &corev1.Node{})
+	if true {
 
-	if err == nil {
+		node, err := rApi.Get(ctx, r.Client, types.NamespacedName{
+			Name: mNode(obj.Name),
+		}, &corev1.Node{})
 
-		clustClient, err := rApi.GetK8sClient(req, r.Scheme)
-		if err != nil {
+		if err == nil {
+
+			clustClient, err := rApi.GetK8sClient(req, r.Scheme)
+			if err != nil {
+				return failed(err)
+			}
+
+			if err := clustClient.Delete(req.Context(), node); err != nil {
+				return req.FailWithStatusError(err)
+			}
+			return failed(fmt.Errorf("detaching node from cluster"))
+		}
+
+		if !apiErrors.IsNotFound(err) {
 			return failed(err)
 		}
 
-		if err := clustClient.Delete(req.Context(), node); err != nil {
-			return req.FailWithStatusError(err)
-		}
-		return failed(fmt.Errorf("detaching node from cluster"))
 	}
 
-	if !apiErrors.IsNotFound(err) {
-		return failed(err)
-	}
-
-	if _, err = terraform.GetOutputs(r.getTFPath(obj)); err == nil {
+	if _, err := terraform.GetOutputs(r.getTFPath(obj)); err == nil {
 		// delete node here
 		if err := r.deleteNode(req); err != nil {
 			return failed(err)
@@ -461,8 +487,41 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 	}
 	defer os.Remove(fname)
 
+	miDetails, ok := rApi.GetLocal[iDetails](req, "instance-details")
+	if !ok {
+		return fmt.Errorf("instance-details not found to check either it is gpu node or cpu node")
+	}
+
+	isGpu := false
+
+	switch obj.Spec.Provider {
+	case "do":
+		var nodeConf nodejobcrgen.DoNode
+		if err := json.Unmarshal([]byte(obj.Spec.Config), &nodeConf); err != nil {
+			return err
+		}
+
+		res, ok := miDetails.Do[nodeConf.Size]
+		if !ok {
+			return fmt.Errorf("details of node type %s not found", nodeConf.Size)
+		}
+		isGpu = res.Gpu
+
+	case "aws":
+		var nodeConf nodejobcrgen.AwsNode
+		if err := json.Unmarshal([]byte(obj.Spec.Config), &nodeConf); err != nil {
+			return err
+		}
+
+		res, ok := miDetails.Aws[nodeConf.InstanceType]
+		if !ok {
+			return fmt.Errorf("details of instance type %s not found", nodeConf.InstanceType)
+		}
+		isGpu = res.Gpu
+	}
+
 	cmd := fmt.Sprintf(
-		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh agent --token=%s --server https://%s:6443 --node-external-ip %s --node-name %s %s",
+		"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s root@%s sudo sh /tmp/k3s-install.sh agent --token=%s --server https://%s:6443 --node-external-ip %s --node-name %s %s %s",
 		fname,
 		ip,
 		strings.TrimSpace(string(token)),
@@ -470,6 +529,14 @@ func (r *WorkerNodeReconciler) attachNode(req *rApi.Request[*infrav1.WorkerNode]
 		ip,
 		mNode(obj.Name),
 		strings.Join(labels, " "),
+		func() string {
+			if isGpu {
+				// return "--docker"
+				// return "--docker"
+				return ""
+			}
+			return ""
+		}(),
 	)
 
 	_, err = fn.ExecCmd(cmd, "", true)
