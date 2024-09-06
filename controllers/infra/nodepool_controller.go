@@ -6,15 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	infrav1 "github.com/kloudlite/cluster-operator/apis/infra/v1"
-	"github.com/kloudlite/cluster-operator/lib/constants"
-	"github.com/kloudlite/cluster-operator/lib/functions"
-	"github.com/kloudlite/cluster-operator/lib/kresource"
-	"github.com/kloudlite/cluster-operator/lib/logging"
-	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
-	rApi "github.com/kloudlite/cluster-operator/lib/operator"
-	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
-	"github.com/kloudlite/cluster-operator/lib/rcalculate"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +19,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	infrav1 "github.com/kloudlite/cluster-operator/apis/infra/v1"
+	"github.com/kloudlite/cluster-operator/lib/constants"
+	"github.com/kloudlite/cluster-operator/lib/functions"
+	"github.com/kloudlite/cluster-operator/lib/kresource"
+	"github.com/kloudlite/cluster-operator/lib/logging"
+	nodejobcrgen "github.com/kloudlite/cluster-operator/lib/nodejob-cr-generator"
+	rApi "github.com/kloudlite/cluster-operator/lib/operator"
+	stepResult "github.com/kloudlite/cluster-operator/lib/operator/step-result"
+	"github.com/kloudlite/cluster-operator/lib/rcalculate"
 )
 
 type NodePoolReconciler struct {
@@ -56,7 +57,6 @@ const (
 
 func (r *NodePoolReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	req, err := rApi.NewRequest(rApi.NewReconcilerCtx(ctx, r.logger), r.Client, request.NamespacedName, &infrav1.NodePool{})
-
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -165,7 +165,6 @@ type iDetail struct {
 }
 
 func (r *NodePoolReconciler) fetchRequired(req *rApi.Request[*infrav1.NodePool]) stepResult.Result {
-
 	ctx := req.Context()
 	if err := func() error {
 		iDetailsConfig, err := rApi.Get(ctx, r.Client, types.NamespacedName{
@@ -190,7 +189,6 @@ func (r *NodePoolReconciler) fetchRequired(req *rApi.Request[*infrav1.NodePool])
 }
 
 func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePool]) stepResult.Result {
-
 	ctx, obj, checks, logger := req.Context(), req.Object, req.Object.Status.Checks, r.logger
 	check := rApi.Check{Generation: obj.Generation}
 	failed := func(err error) stepResult.Result {
@@ -269,7 +267,6 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 			constants.RegionKey: obj.Spec.EdgeName,
 		}, "requests",
 	)
-
 	if err != nil {
 		return req.CheckFailed(WorkerNodesReady, check, err.Error())
 	}
@@ -280,7 +277,6 @@ func (r *NodePoolReconciler) reconWorkerNodes(req *rApi.Request[*infrav1.NodePoo
 			"kloudlite.io/stateful-node": "true",
 		}, "requests",
 	)
-
 	if err != nil {
 		return req.CheckFailed(WorkerNodesReady, check, err.Error())
 	}

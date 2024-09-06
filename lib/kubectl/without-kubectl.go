@@ -7,9 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/kloudlite/cluster-operator/lib/constants"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,6 +21,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/kloudlite/cluster-operator/lib/constants"
 )
 
 type YAMLClient struct {
@@ -342,11 +342,11 @@ func NewYAMLClientWithConfig(config []byte) (*YAMLClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return client, nil
 }
 
 func NewYAMLClientWithConfigOrDie(config []byte) *YAMLClient {
-
 	clientCfg, err := clientcmd.NewClientConfigFromBytes(config)
 	if err != nil {
 		panic(err)
@@ -369,5 +369,6 @@ func NewYAMLClientOrDie(config *rest.Config) *YAMLClient {
 	if err != nil {
 		panic(err)
 	}
+
 	return client
 }
